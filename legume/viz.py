@@ -649,7 +649,8 @@ def field(
     N2=100, 
     cbar=True, 
     eps=True,
-    eps_levels=None
+    eps_levels=None,
+    norm=False
 ):
     """Visualize mode fields over a 2D slice in x, y, or z
 
@@ -705,6 +706,7 @@ def field(
     val = val.lower()
     component = component.lower()
 
+
     # Get the field fourier components
     if (x is None and y is None and z is None and str_type == 'pwe') or \
         (z is not None and x is None and y is None):
@@ -757,57 +759,118 @@ def field(
     else:
         raise ValueError("Specify exactly one of 'x', 'y', or 'z'.")
 
-    sp = len(component)
-    f1, axs = plt.subplots(1, sp, constrained_layout=True)
-    for ic, comp in enumerate(component):
-        f = fi[comp]
-        if periodic==False:
+
+    if norm:
+        sp = 1
+        f1, axs = plt.subplots(1, sp, constrained_layout=True)
+
+        f = np.zeros((N1, N2), dtype=np.complex128)
+
+        for ic, comp in enumerate(component):
+            f += fi[comp]**2
+
+        f = f**(1/2)
+
+        if periodic == False:
             f *= kenv
-        
+
         extent = [grid1[0], grid1[-1], grid2[0], grid2[-1]]
         if sp > 1:
             ax = axs[ic]
         else:
             ax = axs
 
-        if val=='re' or val=='im':
-            Z = np.real(f) if val=='re' else np.imag(f)
+        if val == 're' or val == 'im':
+            Z = np.real(f) if val == 're' else np.imag(f)
             cmap = 'RdBu'
             vmax = np.abs(Z).max()
             vmin = -vmax
-        elif val=='abs':
+        elif val == 'abs':
             Z = np.abs(f)
-            cmap='magma'
+            cmap = 'magma'
             vmax = Z.max()
             vmin = 0
         else:
             raise ValueError("'val' can be 'im', 're', or 'abs'")
 
         im = ax.imshow(Z, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax,
-                        origin='lower')
+                       origin='lower')
 
-        if eps==True:
+        if eps == True:
             lcs = 'k' if val.lower() in ['re', 'im'] else 'w'
             ax.contour(grid1, grid2, epsr, 0 if eps_levels is None else \
-                        eps_levels, colors=lcs, linewidths=1, alpha=0.5)
+                eps_levels, colors=lcs, linewidths=1, alpha=0.5)
 
-        if cbar==True:
+        if cbar == True:
             f1.colorbar(im, ax=ax, shrink=0.5)
 
         title_str = ""
 
-        title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(), 
-                                    field.capitalize(), comp, mind, kind)
+        title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
+                                                        field.capitalize(), component, mind, kind)
         title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
         title_str += "$f = %.2f$" % (struct.freqs[kind, mind])
         if str_type == 'gme':
             if struct.freqs_im != []:
                 if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
-                    title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind]/2/
-                                            struct.freqs_im[kind, mind])
+                    title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind] / 2 /
+                                                    struct.freqs_im[kind, mind])
                 else:
                     title_str += " $Q = $Inf\n"
 
         ax.set_title(title_str)
+    else:
+        sp = len(component)
+        f1, axs = plt.subplots(1, sp, constrained_layout=True)
+        for ic, comp in enumerate(component):
+            f = fi[comp]
+            if periodic==False:
+                f *= kenv
+
+            extent = [grid1[0], grid1[-1], grid2[0], grid2[-1]]
+            if sp > 1:
+                ax = axs[ic]
+            else:
+                ax = axs
+
+            if val=='re' or val=='im':
+                Z = np.real(f) if val=='re' else np.imag(f)
+                cmap = 'RdBu'
+                vmax = np.abs(Z).max()
+                vmin = -vmax
+            elif val=='abs':
+                Z = np.abs(f)
+                cmap='magma'
+                vmax = Z.max()
+                vmin = 0
+            else:
+                raise ValueError("'val' can be 'im', 're', or 'abs'")
+
+            im = ax.imshow(Z, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax,
+                            origin='lower')
+
+            if eps==True:
+                lcs = 'k' if val.lower() in ['re', 'im'] else 'w'
+                ax.contour(grid1, grid2, epsr, 0 if eps_levels is None else \
+                            eps_levels, colors=lcs, linewidths=1, alpha=0.5)
+
+            if cbar==True:
+                f1.colorbar(im, ax=ax, shrink=0.5)
+
+            title_str = ""
+
+            title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
+                                        field.capitalize(), comp, mind, kind)
+            title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
+            title_str += "$f = %.2f$" % (struct.freqs[kind, mind])
+            if str_type == 'gme':
+                if struct.freqs_im != []:
+                    if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
+                        title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind]/2/
+                                                struct.freqs_im[kind, mind])
+                    else:
+                        title_str += " $Q = $Inf\n"
+
+            ax.set_title(title_str)
 
     return f1
