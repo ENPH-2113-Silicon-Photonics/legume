@@ -17,7 +17,9 @@ def bands(
     Q_cmap='viridis', 
     markersize=6, 
     markeredgecolor='w', 
-    markeredgewidth=1.5
+    markeredgewidth=1.5,
+    trim_light_cone = False,
+    lc_trim = 0,
 ):
     """Plot photonic band structure from a GME simulation
 
@@ -69,6 +71,12 @@ def bands(
 
     X = np.tile(X0.reshape(len(X0),1), (1, gme.freqs.shape[1]))
 
+    if trim_light_cone is False:
+        freqs = gme.freqs
+    elif trim_light_cone is True:
+        k_squared = np.tile((gme.kpoints[0]**2+gme.kpoints[1]**2)**(1/2), (gme.numeig, 1)).T
+        freqs = gme.freqs * (gme.freqs/(np.abs(k_squared - lc_trim) + 1e-10) <= 1/(2*np.pi))
+
     if ax is None:
         fig, ax = plt.subplots(1, 1, constrained_layout=True, figsize=figsize)
     if Q:
@@ -78,13 +86,13 @@ def bands(
         Q = gme.freqs.flatten()/2/freqs_im
         Q_max = np.max(Q[Q<Q_clip])
 
-        p = ax.scatter(X.flatten(), gme.freqs.flatten(), 
+        p = ax.scatter(X.flatten(), gme.freqs.flatten(),
                         c=Q, cmap=Q_cmap, s=markersize**2, vmax=Q_max, 
                         norm=mpl.colors.LogNorm(), edgecolors=markeredgecolor, 
                         linewidth=markeredgewidth)
         plt.colorbar(p, ax=ax, label="Radiative quality factor", extend="max")
     else:
-        ax.plot(X, gme.freqs, 'o', c="#1f77b4", label="", ms=markersize, 
+        ax.plot(X, freqs, 'o', c="#1f77b4", label="", ms=markersize,
                     mew=markeredgewidth, mec=markeredgecolor)
 
     if cone:

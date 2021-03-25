@@ -855,7 +855,7 @@ class GuidedModeExp(object):
             omr = 2*np.pi*self.freqs[kind, im]
             evec = self.eigvecs[kind][:, im]
 
-            # Reciprocal vedctors within the radiative cone for the claddings
+            # Reciprocal vectors within the radiative cone for the claddings
             indmoder = [bd.argwhere(gk**2 <= \
                     self.phc.claddings[0].eps_avg*omr**2).ravel(), 
                         bd.argwhere(gk**2 <= \

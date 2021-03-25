@@ -205,59 +205,59 @@ class PhotonicCrystalCavity:
         '''
 
 
-# %%
-
-# testing!! first test crystal types, radii, displacements
-rad1 = [0.4]
-rad2 = [0.2]
-supc = [14, 8]
-'''
-#radii
-test1a = photonicCrystalCavity('H0', rad1, supc, 0.6, 12.0)
-test1b = photonicCrystalCavity('H0', rad2, supc, 0.6, 12.0)
-
-print("test 1:")
-test1a.visualize()
-test1b.visualize()
-'''
-# types
-test2H0 = Photoniccrystalcavity('H0', rad2, supc, 0.6, 12.0)
-test2H1 = Photoniccrystalcavity('H1', rad2, supc, 0.6, 12.0)
-test2H2 = Photoniccrystalcavity('H2', rad2, supc, 0.6, 12.0)
-test2L3 = Photoniccrystalcavity('L3', rad2, supc, 0.6, 12.0)
-test2L5 = Photoniccrystalcavity('L5', rad2, supc, 0.6, 12.0)
-
-print("test 2:")
-test2H0.visualize()
-test2H1.visualize()
-test2H2.visualize()
-test2L3.visualize()
-test2L5.visualize()
-
-
-# %%
-
-# wrap this in main class?
-
-def gme_cavity(dx, dy, xp, yp, eps, thick, rad, lattice, gmax, options):
-    # Initialize PhC
-    phc = cavity(dx, dy, xp, yp, eps, thick, rad, lattice)
-
-    # For speed, we don't want to compute the loss rates of *all* modes that we store
-    options['compute_im'] = False
-
-    # Initialize GME
-    gme = legume.GuidedModeExp(phc, gmax=gmax)
-
-    # Solve for the real part of the frequencies
-    gme.run(kpoints=np.array([[0], [0]]), **options)
-
-    # Find the imaginary frequency of the fundamental cavity mode
-    (freq_im, _, _) = gme.compute_rad(0, [Nx * Ny])
-
-    # Finally, compute the quality factor
-    Q = gme.freqs[0, Nx * Ny] / 2 / freq_im[0]
-    return (gme, Q)
-
-
+# # %%
+#
+# # testing!! first test crystal types, radii, displacements
+# rad1 = [0.4]
+# rad2 = [0.2]
+# supc = [14, 8]
+# '''
+# #radii
+# test1a = PhotonicCrystalCavity('H0', rad1, supc, 0.6, 12.0)
+# test1b = PhotonicCrystalCavity('H0', rad2, supc, 0.6, 12.0)
+#
+# print("test 1:")
+# test1a.visualize()
+# test1b.visualize()
+# '''
+# # types
+# test2H0 = PhotonicCrystalCavity('H0', rad2, supc, 0.6, 12.0)
+# test2H1 = PhotonicCrystalCavity('H1', rad2, supc, 0.6, 12.0)
+# test2H2 = PhotonicCrystalCavity('H2', rad2, supc, 0.6, 12.0)
+# test2L3 = PhotonicCrystalCavity('L3', rad2, supc, 0.6, 12.0)
+# test2L5 = PhotonicCrystalCavity('L5', rad2, supc, 0.6, 12.0)
+#
+# print("test 2:")
+# test2H0.visualize()
+# test2H1.visualize()
+# test2H2.visualize()
+# test2L3.visualize()
+# test2L5.visualize()
+#
+#
+# # %%
+#
+# # wrap this in main class?
+#
+# def gme_cavity(dx, dy, xp, yp, eps, thick, rad, lattice, gmax, options):
+#     # Initialize PhC
+#     phc = cavity(dx, dy, xp, yp, eps, thick, rad, lattice)
+#
+#     # For speed, we don't want to compute the loss rates of *all* modes that we store
+#     options['compute_im'] = False
+#
+#     # Initialize GME
+#     gme = legume.GuidedModeExp(phc, gmax=gmax)
+#
+#     # Solve for the real part of the frequencies
+#     gme.run(kpoints=np.array([[0], [0]]), **options)
+#
+#     # Find the imaginary frequency of the fundamental cavity mode
+#     (freq_im, _, _) = gme.compute_rad(0, [Nx * Ny])
+#
+#     # Finally, compute the quality factor
+#     Q = gme.freqs[0, Nx * Ny] / 2 / freq_im[0]
+#     return (gme, Q)
+#
+#
 
