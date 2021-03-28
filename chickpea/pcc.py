@@ -120,8 +120,6 @@ class PhotonicCrystalCavity:
                 return xnew, ynew
             
             elif ctype == 'H':
-                #!!! THIS DOESN'T WORK YET FOR SOME REASON - i think im getting funky stuff 
-                #with overlapping
                 if m >= min(Nx//2, Ny//2):
                     print("cavity invalid - use a bigger supercell")
                     return xp, yp
@@ -129,7 +127,7 @@ class PhotonicCrystalCavity:
                 ynew = yp.copy()
                 
                 for i in range(m):
-                    ind = (m-1-i)*(Nx//2)+(m-i)//2
+                    ind = (m-1-i)*(Nx//2)+m-i-1
                     num = (m+1+i)//2
                     del xnew[ind:ind+num]
                     del ynew[ind:ind+num]
