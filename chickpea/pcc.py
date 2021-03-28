@@ -131,19 +131,6 @@ class PhotonicCrystalCavity:
                     num = (m+1+i)//2
                     del xnew[ind:ind+num]
                     del ynew[ind:ind+num]
-
-                #troubleshooting for H4 - ignore
-                '''
-                del xnew[27:29]
-                del xnew[18:21]
-                del xnew[9:12]
-                del xnew[0:4]
-                del ynew[26:28]
-                del ynew[17:20]
-                del ynew[9:12]
-                del ynew[0:4]
-                return xnew, ynew
-                '''
             else:
                 print("invalid crystal type")
                 return xp, yp
@@ -186,9 +173,6 @@ class PhotonicCrystalCavity:
         return self.supercell.copy()
 
     def getbase(self):
-        '''
-        lattice = legume.Lattice([self.supercell[0], 0], [0, self.supercell[1]*np.sqrt(3)/2])
-
         xp, yp = [], []
         nx, ny = self.supercell[0]//2+1, self.supercell[1]//2+1
         if self.crystal == 'H0':
@@ -201,7 +185,7 @@ class PhotonicCrystalCavity:
             for ix in range(nx):
               xp.append(ix + (iy%2)*0.5)
               yp.append(iy*np.sqrt(3)/2)
-        '''
+        
 
         cryst = legume.PhotCryst(self.lattice)
         cryst.add_layer(d=self.thick, eps_b=self.eps)
@@ -235,7 +219,7 @@ class PhotonicCrystalCavity:
             xc = x if x == 0 else self.xp[ic] + dx[ic]
             cryst.add_shape(legume.Circle(x_cent=xc, y_cent=yc, r=rad[ic]))
 
-            if nx - 0.6 > self.xp[ic] > 0 and (ny - 1.1) * np.sqrt(3) / 2 > yp[ic] > 0:
+            if nx - 0.6 > self.xp[ic] > 0 and (ny - 1.1) * np.sqrt(3) / 2 > self.yp[ic] > 0:
                 cryst.add_shape(legume.Circle(x_cent=-xc, y_cent=-yc, r=rad[ic]))
             if nx - 1.6 > self.xp[ic] > 0:
                 cryst.add_shape(legume.Circle(x_cent=-xc, y_cent=yc, r=rad[ic]))
