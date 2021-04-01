@@ -165,7 +165,7 @@ class Lattice(object):
         """
         if type(pt) == np.ndarray:
             return pt
-        elif type(pt) == list:
+        elif type(pt) == list or tuple:
             return np.array(pt)
         elif type(pt) == str:
             if pt.lower() == 'g' or pt.lower() == 'gamma':

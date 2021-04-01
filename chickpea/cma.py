@@ -47,7 +47,7 @@ class CavityModeAnalysis:
     def set_arglist(self, arg_list):
         self.arg_list = arg_list
 
-    def filter_for_cavity_modes(self, max_volume, find_band=True, field='h', components='z'):
+    def mode_volume_filter(self, max_volume, band_filter=True, field='h', components='z'):
         """
         Finds the band gaps
         """
@@ -55,31 +55,41 @@ class CavityModeAnalysis:
         if len(self.gme.freqs) == 0:
             raise ValueError("The guided mode expansion has no saved eigenvectors please run again.")
 
-        if find_band is True:
+        arg_list = []
+
+        shape = self.gme.freqs.shape
+        for kind in range(shape[0]):
+            arg_list.append(np.array(range(shape[1])))
+
+        if band_filter is True:
             band_gaps, k_air, k_di = self.find_band_gaps()
-            arg_list = np.argwhere(
-                (self.gme.freqs[0] < (band_gaps[0][1])) * (self.gme.freqs[0] > band_gaps[0][0]))
+            filt = np.zeros(shape, dtype=bool)
+            for band_gap in band_gaps:
+                filt = filt + (self.gme.freqs < (band_gap[1])) * (self.gme.freqs > band_gap[0])
 
-        else:
-            arg_list = np.indices((np.shape(self.gme.freqs)))
+            for kind, mlist in enumerate(arg_list):
+                arg_list[kind] = mlist[filt[kind]]
 
-        V = []
-        for arg in arg_list:
-            V.append(self.mode_volume(self.gme, 'h', 'z', arg[0], arg[1], sample_scale=2))
+        v = []
+        for kind, mlist in enumerate(arg_list):
+            vlist = []
+            for mind in mlist:
+                vlist.append(self.mode_volume(self.gme, field, components, kind, mind, sample_scale=2))
+            vlist = np.array(vlist)
 
-        V = np.array(V)
+            # Filter out high mode volume modes.
+            arg_list[kind] = mlist[vlist <= max_volume]
+            vlist = vlist[vlist <= max_volume]
+            v.append(vlist)
 
-        arg_list = arg_list[np.argwhere(V < max_volume).flatten()]
-        V = V[np.argwhere(V < max_volume).flatten()]
-
-        return arg_list, V
+        return arg_list, v
 
     def categorize_cavity_modes(self, inds):
         """
 
         """
 
-    def find_band_gaps(self, sample_rate=10, order=np.array([0, 3]), band_tol=0.1, lc_trim=0.5, numeig=20):
+    def find_band_gaps(self, sample_rate=10, order=np.array([0, 3]), band_tol=0.1, lc_trim=0.5, numeig=10):
         lattice = self.base.lattice
 
         b1 = lattice.b1

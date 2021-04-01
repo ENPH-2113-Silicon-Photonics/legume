@@ -112,7 +112,7 @@ class GuidedModeExp(object):
 
     @property
     def rad_gvec(self):
-        """Reciprocal lattice vectos corresponding to the radiation emission 
+        """Reciprocal lattice vectors corresponding to the radiation emission
         direction of the coupling constants stored in 
         :attr:`GuidedModeExp.rad_coup`.
         """
