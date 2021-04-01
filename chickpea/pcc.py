@@ -23,9 +23,9 @@ attributes:
 
 class PhotonicCrystalCavity:
     # dx and dy should be optional arguments
-    def __init__(self, crystal, rads, supercell, thickness, eps, *displacements, **kwargs):
+    def __init__(self, crystal, rads, supercell, thickness, eps, m = 1, n = 0, *displacements, **kwargs):
         # not sure if i have to store all these once i create the appropriate lattice...
-        self.crystal = crystal
+        self.crystal = [crystal, m, n]
         self.supercell = supercell
         self.thick = thickness
         self.eps = eps
@@ -41,7 +41,7 @@ class PhotonicCrystalCavity:
         xp, yp = [], []
         nx, ny = Nx // 2 + 1, Ny // 2 + 1
 
-        if crystal == 'H0':
+        if m==0 or (crystal == 'L' and m%2==0):
             for iy in range(ny):
                 for ix in range(nx):
                     xp.append(ix + ((iy + 1) % 2) * 0.5)
@@ -55,6 +55,7 @@ class PhotonicCrystalCavity:
         # remove appropriate holes. Each of these methods takes the default
         # hexagonal lattice coordinates and supercell size,
         # and returns coordinates with the appropriate holes removed.
+        '''
         def H0(xp, yp, Nx, Ny):
             return xp, yp
 
@@ -89,8 +90,52 @@ class PhotonicCrystalCavity:
             holesBeGone = switcher.get(crystal, lambda: "Invalid crystal; it might not be implemented yet.")
             # Execute the function
             return holesBeGone(xp, yp, Nx, Ny)
+        '''
+        def removeholes(xp, yp, Nx, Ny, ctype, m, n):
+            #check if crystal valid
+            if (m+1)//2 >= min((Nx+1)//2, (Ny+1)//2):
+                print("cavity invalid - use a bigger supercell")
+                return xp, yp
+            
+            #not sure if necessary
+            if m ==0:
+                return xp, yp
 
-        xp, yp = removeholes(crystal, xp, yp, Nx, Ny)
+            elif ctype == 'L':
+                if m >= Nx:
+                    print("cavity invalid - use a bigger supercell")
+                    return xp, yp
+            
+                #remove (m+1)/2 holes:
+                xremoved = xp.copy()[(m+1)//2:]
+                yremoved = yp.copy()[(m+1)//2:]
+                
+                #fill with n holes:
+                xfill = list(np.linspace(-xremoved[0], xremoved[0], num = n+2, endpoint = True)[(n+2)//2: -1])
+                #xfill = xfill[(n+2)//2: -1]
+                yfill = list(np.zeros((n+1)//2))
+                
+                xnew = xfill + xremoved
+                ynew = yfill + yremoved
+                return xnew, ynew
+            
+            elif ctype == 'H':
+                if m >= min(Nx//2, Ny//2):
+                    print("cavity invalid - use a bigger supercell")
+                    return xp, yp
+                xnew = xp.copy()
+                ynew = yp.copy()
+                
+                for i in range(m):
+                    ind = (m-1-i)*(Nx//2)+m-i-1
+                    num = (m+1+i)//2
+                    del xnew[ind:ind+num]
+                    del ynew[ind:ind+num]
+            else:
+                print("invalid crystal type")
+                return xp, yp
+
+            xp, yp = removeholes(xp, yp, Nx, Ny, crystal, m, n)
         self.xp, self.yp = xp, yp
         cryst = legume.PhotCryst(lattice)
         cryst.add_layer(d=self.thick, eps_b=eps)
@@ -108,7 +153,7 @@ class PhotonicCrystalCavity:
 
         for ic, x in enumerate(xp):
             yc = yp[ic] if yp[ic] == 0 else yp[ic] + self.dy[ic]
-            xc = x if x == 0 else xp[ic] + self.dx[ic]
+            xc = x if x == 0 else xp[ic] + self.dx[ic] # shouldn't be here for an H0 crystal
             cryst.add_shape(legume.Circle(x_cent=xc, y_cent=yc, r=self.rads[ic]))
 
             if nx - 0.6 > xp[ic] > 0 and (ny - 1.1) * np.sqrt(3) / 2 > yp[ic] > 0:
@@ -128,9 +173,6 @@ class PhotonicCrystalCavity:
         return self.supercell.copy()
 
     def getbase(self):
-        '''
-        lattice = legume.Lattice([self.supercell[0], 0], [0, self.supercell[1]*np.sqrt(3)/2])
-
         xp, yp = [], []
         nx, ny = self.supercell[0]//2+1, self.supercell[1]//2+1
         if self.crystal == 'H0':
@@ -143,14 +185,14 @@ class PhotonicCrystalCavity:
             for ix in range(nx):
               xp.append(ix + (iy%2)*0.5)
               yp.append(iy*np.sqrt(3)/2)
-        '''
+        
 
         cryst = legume.PhotCryst(self.lattice)
         cryst.add_layer(d=self.thick, eps_b=self.eps)
         # since the area of the holes matters, I want the radii of the base crystal
         # holes to be such that the total area of the holes is the same.
         averagerad = np.sqrt(np.square(self.rads) / len(self.rads))
-
+        nx, ny = self.supercell[0] // 2 + 1, self.supercell[1] // 2 + 1
         for ic, x in enumerate(self.xp):
             yc = self.yp[ic]
             xc = x
@@ -171,12 +213,13 @@ class PhotonicCrystalCavity:
         # lattice = legume.Lattice([self.supercell[0], 0], [0, self.supercell[1]*np.sqrt(3)/2])
         cryst = legume.PhotCryst(self.lattice)
         cryst.add_layer(d=self.thick, eps_b=self.eps)
+        nx, ny = self.supercell[0] // 2 + 1, self.supercell[1] // 2 + 1
         for ic, x in enumerate(self.xp):
             yc = self.yp[ic] if self.yp[ic] == 0 else self.yp[ic] + dy[ic]
             xc = x if x == 0 else self.xp[ic] + dx[ic]
             cryst.add_shape(legume.Circle(x_cent=xc, y_cent=yc, r=rad[ic]))
 
-            if nx - 0.6 > self.xp[ic] > 0 and (ny - 1.1) * np.sqrt(3) / 2 > yp[ic] > 0:
+            if nx - 0.6 > self.xp[ic] > 0 and (ny - 1.1) * np.sqrt(3) / 2 > self.yp[ic] > 0:
                 cryst.add_shape(legume.Circle(x_cent=-xc, y_cent=-yc, r=rad[ic]))
             if nx - 1.6 > self.xp[ic] > 0:
                 cryst.add_shape(legume.Circle(x_cent=-xc, y_cent=yc, r=rad[ic]))
@@ -191,9 +234,6 @@ class PhotonicCrystalCavity:
     def visualize(self):
         legume.viz.eps_xy(self.phc, cbar=True)
 
-    # maybe?
-    def calcq(self):
-        return
         '''
         to construct:
          - a method that modifies the stored phc based on dx, dy, rad.
