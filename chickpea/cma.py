@@ -1,17 +1,18 @@
 import numpy as np
 import legume
-
+from scipy.spatial import Voronoi
 
 class CavityModeAnalysis:
 
-    def __init__(self, phc, base_phc, super_periods, defect_margins, layer=0, gmax=3, base_gmax=4):
+    def __init__(self, phc, base_phc, defect_margins, layer=0, gmax=3, base_gmax=4):
 
+        self.super = phc
         self.base = base_phc
         self.layer = 0
         self.dslab = self.base.layers[layer].d
 
-        self.nx = super_periods[0]
-        self.ny = super_periods[1]
+        self.l_x = self.super.lattice.a1
+        self.l_y = self.super.lattice.a2
 
         self.marg_x = defect_margins[0]
 
@@ -25,8 +26,8 @@ class CavityModeAnalysis:
         """
         Get the Max
         """
-        s_nx = int(sample_scale * self.nx)
-        s_ny = int(sample_scale * self.ny)
+        s_nx = int(sample_scale * self.l_x)
+        s_ny = int(sample_scale * self.l_y)
 
         fields, _, _ = gme.get_field_xy(field=field, kind=kind, mind=mind, z=self.dslab / 2,
                                         component=components, Nx=s_nx, Ny=s_ny)
@@ -89,15 +90,14 @@ class CavityModeAnalysis:
 
         """
 
-    def find_band_gaps(self, sample_rate=10, order=np.array([0, 3]), band_tol=0.1, lc_trim=0.5, numeig=10):
+    def find_band_gaps(self, sample_rate=10, order=np.array([0, 3]), band_tol=0.1, lc_trim=0.5, numeig=20):
         lattice = self.base.lattice
 
         b1 = lattice.b1
         b2 = lattice.b2
-        path = lattice.bz_path([[0, 0], b1 / 2, b2 / 2, [0, 0]],
-                               [sample_rate * int(np.linalg.norm(b1) / np.pi),
-                                sample_rate * int(np.linalg.norm(b1 - b2) / np.pi),
-                                sample_rate * int(np.linalg.norm(b1) / np.pi)])
+        points = [b1, b2, -b1, -b2, b1-b2, b2-b1]
+
+
 
         if len(self.base_gme.freqs) == 0:
             self.base_gme.run(kpoints=path['kpoints'],

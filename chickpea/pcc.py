@@ -135,7 +135,8 @@ class PhotonicCrystalCavity:
                 print("invalid crystal type")
                 return xp, yp
 
-            xp, yp = removeholes(xp, yp, Nx, Ny, crystal, m, n)
+        xp, yp = removeholes(xp, yp, Nx, Ny, crystal, m, n)
+
         self.xp, self.yp = xp, yp
         cryst = legume.PhotCryst(lattice)
         cryst.add_layer(d=self.thick, eps_b=eps)
