@@ -1,6 +1,7 @@
 import numpy as np
 import legume
-from scipy.spatial import Voronoi
+import itertools
+
 
 class CavityModeAnalysis:
 
@@ -11,8 +12,8 @@ class CavityModeAnalysis:
         self.layer = 0
         self.dslab = self.base.layers[layer].d
 
-        self.l_x = self.super.lattice.a1
-        self.l_y = self.super.lattice.a2
+        self.l_x = np.linalg.norm(self.super.lattice.a1)
+        self.l_y = np.linalg.norm(self.super.lattice.a2)
 
         self.marg_x = defect_margins[0]
 
@@ -48,7 +49,7 @@ class CavityModeAnalysis:
     def set_arglist(self, arg_list):
         self.arg_list = arg_list
 
-    def mode_volume_filter(self, max_volume, band_filter=True, field='h', components='z'):
+    def mode_volume_filter(self, max_volume, band_filter=None, field='h', components='z'):
         """
         Finds the band gaps
         """
@@ -62,10 +63,9 @@ class CavityModeAnalysis:
         for kind in range(shape[0]):
             arg_list.append(np.array(range(shape[1])))
 
-        if band_filter is True:
-            band_gaps, k_air, k_di = self.find_band_gaps()
+        if band_filter is not None:
             filt = np.zeros(shape, dtype=bool)
-            for band_gap in band_gaps:
+            for band_gap in band_filter:
                 filt = filt + (self.gme.freqs < (band_gap[1])) * (self.gme.freqs > band_gap[0])
 
             for kind, mlist in enumerate(arg_list):
@@ -90,27 +90,28 @@ class CavityModeAnalysis:
 
         """
 
-    def find_band_gaps(self, sample_rate=10, order=np.array([0, 3]), band_tol=0.1, lc_trim=0.5, numeig=20):
+    def find_band_gaps(self, sample_rate=10, order=np.array([0, 3]), band_tol=0.1, trim_lc=False, lc_trim=0, numeig=20):
+
         lattice = self.base.lattice
 
-        b1 = lattice.b1
-        b2 = lattice.b2
-        points = [b1, b2, -b1, -b2, b1-b2, b2-b1]
+        bz = lattice.get_irreducible_brioullin_zone_vertices()
 
+        path = lattice.bz_path(bz, [sample_rate] * (len(bz)-1))
 
-
-        if len(self.base_gme.freqs) == 0:
-            self.base_gme.run(kpoints=path['kpoints'],
-                              gmode_inds=order,
-                              numeig=numeig,
-                              compute_im=False,
-                              gradients='approx',
-                              verbose=False)
+        self.base_gme.run(kpoints=path['kpoints'],
+                          gmode_inds=order,
+                          numeig=numeig,
+                          compute_im=False,
+                          gradients='approx',
+                          verbose=False)
 
         k_abs = np.tile((self.base_gme.kpoints[0] ** 2 + self.base_gme.kpoints[1] ** 2) ** (1 / 2), (numeig, 1)).T
-        in_lc_freqs = self.base_gme.freqs[self.base_gme.freqs / (np.abs(k_abs - lc_trim) + 1e-10) <= 1 / (2 * np.pi)]
+        if trim_lc:
+            in_lc_freqs = self.base_gme.freqs[self.base_gme.freqs / (np.abs(k_abs - lc_trim) + 1e-10) <= 1 / (2 * np.pi)]
 
-        freqs_flat = np.sort(in_lc_freqs)
+            freqs_flat = np.sort(in_lc_freqs)
+        else:
+            freqs_flat = np.sort(self.base_gme.freqs.flatten())
 
         gaps = np.diff(freqs_flat)
         band_gaps = []
