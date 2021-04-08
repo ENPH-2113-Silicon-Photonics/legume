@@ -98,7 +98,6 @@ class Lattice(object):
                 a1, a2 = self._gauss_reduction(a1[0:2], a2[0:2])
                 a1 = bd.hstack((a1, 0))
                 a2 = bd.hstack((a2, 0))
-            print(np.round(np.abs(bd.dot(a1, a2) / bd.dot(a1, a1)), 6))
             if np.round(np.abs(bd.dot(a1, a2) / bd.dot(a1, a1)), 6) == 0.5 \
                     and np.round(bd.norm(a1), 6) == np.round(bd.norm(a2), 6):
 

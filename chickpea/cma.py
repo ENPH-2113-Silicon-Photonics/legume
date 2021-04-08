@@ -46,10 +46,7 @@ class CavityModeAnalysis:
 
         return mode_volume
 
-    def set_arglist(self, arg_list):
-        self.arg_list = arg_list
-
-    def mode_volume_filter(self, max_volume, band_filter=None, field='h', components='z'):
+    def filter_for_defect_mode(self, max_volume, band_filter=None, field='h', components='z'):
         """
         Finds the band gaps
         """
@@ -84,6 +81,20 @@ class CavityModeAnalysis:
             v.append(vlist)
 
         return arg_list, v
+
+    def calculate_loss_rates_and_coupling(self, arg_list):
+        q = []
+        freqs_im = []
+        rad_coup = []
+        rad_gvec = []
+        for kind, mlist in enumerate(arg_list):
+            freqs_im_list, rad_coup_list, rad_gvec_list = self.gme.compute_rad(kind=kind, minds=mlist)
+            qlist = self.gme.freqs[kind][mlist] / (2 * freqs_im_list)
+            q.append(qlist)
+            freqs_im.append(freqs_im_list)
+            rad_coup.append(rad_coup_list)
+            rad_gvec.append(rad_gvec_list)
+        return q, freqs_im, rad_coup, rad_gvec
 
     def categorize_cavity_modes(self, inds):
         """
