@@ -18,7 +18,7 @@ inputs:
     thickness: the thickness of the pcc layer
     eps: background permittivity of the pcc
     m: first cavity parameter. For instance, for an L3 crystal, this would be 3.
-    n: second cavity parameter. For instance, for an L3-4 crystal, this would be 4.
+    n: second cavity parameter. For instance, for an L3-4 crystal, this would be 4. irrelevant for H cavity.
     *displacements: optional displacements argument.
     **kwargs: maybe add ambient radius?
 
@@ -159,7 +159,6 @@ class pcc:
                 return xp, yp
 
         xp, yp = removeholes(xp, yp, Nx, Ny, ctype, m, n)
-        self.xp, self.yp = xp, yp #not sure if this should be here now, since xp and yp aren't initialized in the constructor
         cryst = legume.PhotCryst(self.lattice)
         cryst.add_layer(d=self.thick, eps_b=self.eps)
 
