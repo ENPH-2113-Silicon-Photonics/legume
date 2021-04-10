@@ -2,7 +2,7 @@
 
 import numpy as np
 import legume
-from typing import Sequence, Literal, Tuple, Union
+from typing import Sequence, Literal, Tuple
 
 
 # %%
@@ -133,7 +133,9 @@ class PhotonicCrystalCavity:
                                                                       self.thickness, self.radius, self.eps,
                                                                       self.crystal[1], self.crystal[2])
 
-    def cavity(self, dx: Sequence[int] = None, dy: Sequence[int] = None, rads: Sequence[int] = None) -> legume.phc.phc:
+    def cavity(self, dx: Sequence[float] = None,
+               dy: Sequence[float] = None,
+               rads: Sequence[float] = None) -> legume.phc.phc:
         """
         Construct a photonic crystal cavity object of topology specified in constructor
 
