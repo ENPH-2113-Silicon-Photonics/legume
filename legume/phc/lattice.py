@@ -63,15 +63,15 @@ class Lattice(object):
             raise UserWarning("Lattice not reduced, algorithm depends on reduced lattice to function.")
 
         if self.type == 'square':
-            return ['G', 'M', 'X',  'G']
+            return ['G', self.b1 / 2, self.b1 / 2 + self.b2 / 2, 'G']
         elif self.type == 'custom_square':
-            pass
+            return ['G', self.b1 / 2, self.b1 / 2 + self.b2 / 2, 'G']
         elif self.type == 'hexagonal':
-            return ['G', 'M', 'K',  'G']
+            return ['G', self.b1 / 2, 1 / np.linalg.norm(self.a1) * np.array([4 / 3 * np.pi, 0]), 'G']
         elif self.type == 'custom_hexagonal':
-            return ['G', self.b1/2, 1/np.linalg.norm(self.a1)*np.array([4/3*np.pi, 0]),  'G']
+            return ['G', self.b1 / 2, 1 / np.linalg.norm(self.a1) * np.array([4 / 3 * np.pi, 0]), 'G']
         elif self.type == 'rectangular':
-            return ['G', self.b1 / 2, self.b1/2+self.b2/2, self.b2/2, 'G']
+            return ['G', self.b1 / 2, self.b1 / 2 + self.b2 / 2, self.b2 / 2, 'G']
         elif self.type == 'custom':
             raise NotImplementedError()
         pass
@@ -184,8 +184,11 @@ class Lattice(object):
             A dictionary with the 'kpoints', 'labels', and the 
             'indexes' corresponding to the labels.      
         """
+        if isinstance(ns, int):
+            ns = [ns]
 
-        if not isinstance(ns, list): ns = list(ns)
+        if not isinstance(ns, list):
+            ns = list(ns)
         npts = len(pts)
         if npts < 2:
             raise ValueError("At least two points must be given")

@@ -643,7 +643,7 @@ def reciprocal(struct):
     fig, ax = plt.subplots(1, constrained_layout=True)
     plt.plot(struct.gvec[0, :], struct.gvec[1, :], 'bx')
     ax.set_title("Reciprocal lattice")
-
+    return fig, ax
 
 def field(
     struct, 
