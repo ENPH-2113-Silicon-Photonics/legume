@@ -23,14 +23,14 @@ class CavityModeAnalysis:
         self.gme = legume.GuidedModeExp(phc, gmax=gmax)
         self.base_gme = legume.GuidedModeExp(base_phc, gmax=base_gmax)
 
-    def mode_volume(self, gme, field, components, kind, mind, sample_scale=2):
+    def mode_volume(self, field, components, kind, mind, sample_scale=2):
         """
         Get the Max
         """
         s_nx = int(sample_scale * self.l_x)
         s_ny = int(sample_scale * self.l_y)
 
-        fields, _, _ = gme.get_field_xy(field=field, kind=kind, mind=mind, z=self.dslab / 2,
+        fields, _, _ = self.gme.get_field_xy(field=field, kind=kind, mind=mind, z=self.dslab / 2,
                                         component=components, Nx=s_nx, Ny=s_ny)
 
         field = np.zeros((s_ny, s_nx))
