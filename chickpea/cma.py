@@ -23,15 +23,15 @@ class CavityModeAnalysis:
         self.gme = legume.GuidedModeExp(phc, gmax=gmax)
         self.base_gme = legume.GuidedModeExp(base_phc, gmax=base_gmax)
 
-    def mode_volume(self, gme, field, components, kind, mind, sample_scale=2):
+    def mode_volume(self, field, components, kind, mind, sample_scale=2):
         """
         Get the Max
         """
         s_nx = int(sample_scale * self.l_x)
         s_ny = int(sample_scale * self.l_y)
 
-        fields, _, _ = gme.get_field_xy(field=field, kind=kind, mind=mind, z=self.dslab / 2,
-                                        component=components, Nx=s_nx, Ny=s_ny)
+        fields, _, _ = self.gme.get_field_xy(field=field, kind=kind, mind=mind, z=self.dslab / 2,
+                                             component=components, Nx=s_nx, Ny=s_ny)
 
         field = np.zeros((s_ny, s_nx))
         for component in components:
@@ -72,7 +72,7 @@ class CavityModeAnalysis:
         for kind, mlist in enumerate(arg_list):
             vlist = []
             for mind in mlist:
-                vlist.append(self.mode_volume(self.gme, field, components, kind, mind, sample_scale=2))
+                vlist.append(self.mode_volume(field, components, kind, mind, sample_scale=2))
             vlist = np.array(vlist)
 
             # Filter out high mode volume modes.
@@ -107,7 +107,7 @@ class CavityModeAnalysis:
 
         bz = lattice.get_irreducible_brioullin_zone_vertices()
 
-        path = lattice.bz_path(bz, [sample_rate] * (len(bz)-1))
+        path = lattice.bz_path(bz, [sample_rate] * (len(bz) - 1))
 
         self.base_gme.run(kpoints=path['kpoints'],
                           gmode_inds=order,
@@ -118,7 +118,8 @@ class CavityModeAnalysis:
 
         k_abs = np.tile((self.base_gme.kpoints[0] ** 2 + self.base_gme.kpoints[1] ** 2) ** (1 / 2), (numeig, 1)).T
         if trim_lc:
-            in_lc_freqs = self.base_gme.freqs[self.base_gme.freqs / (np.abs(k_abs - lc_trim) + 1e-10) <= 1 / (2 * np.pi)]
+            in_lc_freqs = self.base_gme.freqs[
+                self.base_gme.freqs / (np.abs(k_abs - lc_trim) + 1e-10) <= 1 / (2 * np.pi)]
 
             freqs_flat = np.sort(in_lc_freqs)
         else:
