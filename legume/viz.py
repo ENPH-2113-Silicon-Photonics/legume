@@ -75,7 +75,10 @@ def bands(
         freqs = gme.freqs
     elif trim_light_cone is True:
         k_squared = np.tile((gme.kpoints[0]**2+gme.kpoints[1]**2)**(1/2), (gme.numeig, 1)).T
-        freqs = gme.freqs * (gme.freqs/(np.abs(k_squared - lc_trim) + 1e-10) <= 1/(2*np.pi))
+        filter = gme.freqs/(np.abs(k_squared - lc_trim) + 1e-10) <= 1/(2*np.pi)
+
+        freqs = gme.freqs[filter]
+        X = X[filter]
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, constrained_layout=True, figsize=figsize)
@@ -640,7 +643,7 @@ def reciprocal(struct):
     fig, ax = plt.subplots(1, constrained_layout=True)
     plt.plot(struct.gvec[0, :], struct.gvec[1, :], 'bx')
     ax.set_title("Reciprocal lattice")
-
+    return fig, ax
 
 def field(
     struct, 

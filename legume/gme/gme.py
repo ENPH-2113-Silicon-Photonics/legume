@@ -522,7 +522,7 @@ class GuidedModeExp(object):
             gmode_npts: int=1000,
             gmode_step: float=1e-2, gmode_tol: float=1e-10, numeig: int=10,
             compute_im: bool=True, gradients='exact', eig_solver='eigh',
-            eig_sigma: float=0., eps_eff='average', verbose: bool=True):
+            eig_sigma: float=0., eig_start=None, eps_eff='average', verbose: bool=True):
             """Set multiple options for the guided-mode expansion.
             
             Parameters
@@ -577,7 +577,7 @@ class GuidedModeExp(object):
                 'compute_im':compute_im, 
                 'gradients':gradients, 
                 'eig_solver':eig_solver,
-                'eig_sigma':eig_sigma, 
+                'eig_sigma':eig_sigma,
                 'eps_eff':eps_eff, 
                 'verbose':verbose  
                 }
