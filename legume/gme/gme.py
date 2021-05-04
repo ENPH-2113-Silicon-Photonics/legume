@@ -90,6 +90,12 @@ class GuidedModeExp(object):
         guided-mode expansion.
         """
         return self._freqs_im
+    @property
+    def dim(self):
+        """
+            Dimension of eigenvectors and solver matrix/number of g-vectors.
+        """
+        return self.gvec.shape[1]
 
     @property
     def eigvecs(self):
@@ -369,7 +375,7 @@ class GuidedModeExp(object):
         """
         Construct the Hermitian matrix for diagonalization for a given k
         """
-
+                                  
         # G + k vectors
         gkx = self.gvec[0, :] + self.kpoints[0, kind] + 1e-10
         gky = self.gvec[1, :] + self.kpoints[1, kind]
@@ -566,6 +572,10 @@ class GuidedModeExp(object):
                 Print information at intermmediate steps. Default is True.
             """
 
+
+            if eig_start is not None and eig_start.size != self.dim:
+                raise ValueError("Starting vector not the correct dimension.")
+
             # Make a dictionary that stores all the options
             self._run_options = {
                 'gmode_compute':gmode_compute, 
@@ -578,6 +588,7 @@ class GuidedModeExp(object):
                 'gradients':gradients, 
                 'eig_solver':eig_solver,
                 'eig_sigma':eig_sigma,
+                'eig_start':eig_start,
                 'eps_eff':eps_eff, 
                 'verbose':verbose  
                 }
@@ -587,6 +598,8 @@ class GuidedModeExp(object):
                 # Make sure 'gmode_inds' is a numpy array
                 if option.lower() == 'gmode_inds':
                     value = np.array(value)
+
+
                 # Set all the options as class attributes
                 setattr(self, option, value)
 
@@ -709,14 +722,17 @@ class GuidedModeExp(object):
         freqs_im = []
         self._eigvecs = []
         for ik, k in enumerate(kpoints.T):
-            
+            t_mat = time.time()
             self._print("Running k-point %d of %d" % (ik+1, kpoints.shape[1]), 
                         flush=True)            
             mat = self._construct_mat(kind=ik)
+            self.t_mat = time.time() - t_mat
+
             if self.numeig > mat.shape[0]:
                 raise ValueError("Requested number of eigenvalues 'numeig' "
                     "larger than total size of basis set. Reduce 'numeig' or "
                     "increase 'gmax'")
+
 
             # NB: we shift the matrix by np.eye to avoid problems at the zero-
             # frequency mode at Gamma
@@ -730,9 +746,10 @@ class GuidedModeExp(object):
                 freq = freq1[i_near[i_sort]]
                 evec = evecs[:, i_near[i_sort]]
             elif self.eig_solver == 'eigsh':
-                (freq2, evecs) = bd.eigsh(mat + bd.eye(mat.shape[0]), 
+                (freq2, evecs) = bd.eigsh(mat + bd.eye(mat.shape[0]),
                                         k=self.numeig, 
-                                        sigma=(self.eig_sigma*2*np.pi)**2 + 1)
+                                        sigma=(self.eig_sigma*2*np.pi)**2 + 1,
+                                        v0=self.eig_start)
                 freq1 = bd.sqrt(bd.abs(freq2 - bd.ones(self.numeig)))/2/np.pi
                 i_sort = bd.argsort(freq1)
                 freq = freq1[i_sort]

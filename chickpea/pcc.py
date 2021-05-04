@@ -178,14 +178,14 @@ class PhotonicCrystalCavity:
         # et voila! the crystal should be defined.
         return cryst
 
-    def get_supercell(self) -> Tuple[int, int]:
+    def supercell(self) -> Tuple[int, int]:
         """
         The number of periods in X and Y of base crystal in the supercell_size.
         @return: length 2 array of periods (Nx,Ny)
         """
         return self._supercell_size
 
-    def get_num_holes(self) -> int:
+    def num_holes(self) -> int:
         """
         @return: Number of independently varying holes of crystal. All inputs to cavity method should be of this form.
         """
