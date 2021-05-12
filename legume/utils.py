@@ -156,11 +156,9 @@ def toeplitz_block(n, T1, T2):
     return np.triu(Tmat) + np.conj(np.transpose(np.triu(Tmat,1)))
 
 
-def toeplitz_inv(Tmat, ):
+def toeplitz_inv(Tmat):
     """
-    Constructs a Hermitian Toeplitz-block-Toeplitz matrix with n blocks and
-    T1 in the first row and T2 in the first column of every block in the first
-    row of blocks
+    Inverts a Toeplitz Block Toeplitz matrix.
     """
     ntot = T1.shape[0]
     p = int(ntot/n) # Linear size of each block

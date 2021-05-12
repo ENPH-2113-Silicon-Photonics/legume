@@ -368,7 +368,7 @@ class GuidedModeExp(object):
         G2 = np.zeros((2, n1max * n2max))
 
         I1 = - self._inds + self._inds[:, [0]]
-        I2 = np.zeros((2, n1max*n2max))
+        I2 = np.zeros((2, n1max*n2max), dtype=np.int_)
         # Initialize the FT coefficient lists; in the end the length of these
         # will be equal to the total number of layers in the PhC
         self.T1 = []
