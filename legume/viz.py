@@ -650,7 +650,8 @@ def field(
     cbar=True, 
     eps=True,
     eps_levels=None,
-    norm=False
+    norm=False,
+    mode='default'
 ):
     """Visualize mode fields over a 2D slice in x, y, or z
 
@@ -706,14 +707,22 @@ def field(
     val = val.lower()
     component = component.lower()
 
-
+    if mode=='DFT':
+        xgrid=None
+        ygrid=None
+    elif mode=='default':
+        xgrid=None
+        ygrid=None
+    else:
+        raise ValueError("Mode must be default or DFT")
     # Get the field fourier components
+
     if (x is None and y is None and z is None and str_type == 'pwe') or \
         (z is not None and x is None and y is None):
 
         zval = 0. if z == None else z
         (fi, grid1, grid2) = struct.get_field_xy(field, kind, mind, z,
-                                        component=component, Nx=N1, Ny=N2)
+                                        component=component, Nx=N1, Ny=N2, xgrid=xgrid, ygrid=ygrid)
         if eps == True:
             if str_type == 'pwe':
                 epsr = struct.layer.get_eps(np.meshgrid(
