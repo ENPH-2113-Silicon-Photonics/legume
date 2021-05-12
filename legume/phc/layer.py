@@ -248,8 +248,8 @@ class FreeformLayer(Layer):
         xmesh, ymesh = points
         if self.initialized:
 
-            inds_x = np.int_(xmesh * self.res[0] / self.lattice.a1)
-            inds_y = np.int_(ymesh * self.res[1] / self.lattice.a2)
+            inds_x = np.int_(xmesh * self.res[0] / np.linalg.norm(self.lattice.a1))
+            inds_y = np.int_(ymesh * self.res[1] / np.linalg.norm(self.lattice.a2))
             return self._eps_dist[inds_x, inds_y]
 
         else:
