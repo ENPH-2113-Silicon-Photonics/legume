@@ -191,9 +191,10 @@ class FreeformLayer(Layer):
         self.eps_b=eps_b
         # Initialize average permittivity - needed for guided-mode computation
         if eps_dist is not None:
-            self.eps_avg = np.sum(eps_dist)/lattice.ec_area
-
             self.res = eps_dist.shape
+
+            self.eps_avg = np.sum(eps_dist)/(self.res[0]*self.res[1])
+
             self._eps_dist = eps_dist
             self._eps_ft = np.fft.fft2(eps_dist)
             self.initialized = True
@@ -209,9 +210,10 @@ class FreeformLayer(Layer):
         self.layer_type = 'freeform'
 
     def initialize(self, eps_dist):
-        self.eps_avg = np.sum(eps_dist)/self.lattice.ec_area
 
         self.res = eps_dist.shape
+        self.eps_avg = np.sum(eps_dist)/(self.res[0]*self.res[1])
+
         self._eps_dist = eps_dist
         self._eps_ft = np.fft.fft2(eps_dist)
 
@@ -221,7 +223,7 @@ class FreeformLayer(Layer):
         if self.initialized:
             FT = []
             for (i_x, i_y) in inds.T:
-                FT.append(self._eps_ft[i_x, i_y])
+                FT.append(self._eps_ft[i_x, i_y]*np.exp(-1j*np.pi*(i_x+i_y)))
 
             FT = np.array(FT, dtype=np.complex128)
 
@@ -235,7 +237,7 @@ class FreeformLayer(Layer):
         Compute the 2D Fourier transform of the layer permittivity from the *indices* of the gvectors
         """
         ind0 = bd.abs(inds[0, :]) + bd.abs(inds[1, :]) < 1e-10
-        FT = FT / self.lattice.ec_area
+        FT = FT / (self.res[0]*self.res[1])
         FT = FT*(1-ind0) + self.eps_avg*ind0
 
         return FT
