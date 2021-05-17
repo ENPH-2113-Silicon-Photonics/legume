@@ -2,7 +2,6 @@ import numpy as np
 from legume.backend import backend as bd
 import legume.utils as utils
 from .shapes import Shape, Circle, Poly, Square
-import cv2 as cv
 
 class Layer(object):
     """

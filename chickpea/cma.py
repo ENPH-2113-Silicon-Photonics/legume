@@ -1,6 +1,5 @@
 import numpy as np
 import legume
-import itertools
 
 
 class CavityModeAnalysis:
