@@ -27,6 +27,16 @@ try:
 except ImportError:
     AG_AVAILABLE = False
 
+
+# Import jax if available
+
+import jax.numpy as jnp
+import jax.scipy as jsp
+from .primitives import (toeplitz_block_ag, eigh_ag, interp_ag, fsolve_ag,
+                    eigsh_ag, inv_ag, sqrt_ag, extend_ag)
+JAX_AVAILABLE = True
+
+
 class Backend(object):
     """
     Backend Base Class 
@@ -162,6 +172,68 @@ if AG_AVAILABLE:
 
         # Fourier transform
         fft2 = staticmethod(npa.fft.fft2)
+
+if JAX_AVAILABLE:
+    class JAXBackend(Backend):
+        """ Autograd Backend """
+        # methods
+        sum = staticmethod(jnp.sum)
+        stack = staticmethod(jnp.stack)
+        hstack = staticmethod(jnp.hstack)
+        vstack = staticmethod(jnp.vstack)
+        transpose = staticmethod(jnp.transpose)
+        reshape = staticmethod(jnp.reshape)
+        toeplitz_block = staticmethod(toeplitz_block_ag)
+        roll = staticmethod(jnp.roll)
+        where = staticmethod(jnp.where)
+        argwhere = staticmethod(jnp.argwhere)
+        triu = staticmethod(jnp.triu)
+        amax = staticmethod(jnp.amax)
+        max = staticmethod(jnp.max)
+        min = staticmethod(jnp.min)
+        sort = staticmethod(jnp.sort)
+        argsort = staticmethod(jnp.argsort)
+        floor = staticmethod(jnp.round)
+        interp = staticmethod(interp_ag)
+        fsolve_D22 = staticmethod(fsolve_ag)
+        extend = staticmethod(extend_ag)
+
+        # math functions
+        exp = staticmethod(jnp.exp)
+        bessel1 = staticmethod(sp.special.j1)
+        sqrt = staticmethod(sqrt_ag)
+        divide = staticmethod(jnp.divide)
+        abs = staticmethod(jnp.abs)
+        square = staticmethod(jnp.square)
+        sin = staticmethod(jnp.sin)
+        cos = staticmethod(jnp.cos)
+        tanh = staticmethod(jnp.tanh)
+        cross = staticmethod(jnp.cross)
+        norm = staticmethod(jnp.linalg.norm)
+        dot = staticmethod(jnp.dot)
+        real = staticmethod(jnp.real)
+        imag = staticmethod(jnp.imag)
+        inv = staticmethod(inv_ag)
+        eigh = staticmethod(eigh_ag)
+        eigsh = staticmethod(eigsh_ag)
+        outer = staticmethod(jnp.outer)
+        conj = staticmethod(jnp.conj)
+        var = staticmethod(jnp.var)
+        power = staticmethod(jnp.power)
+
+        # constructors
+        diag = staticmethod(jnp.diag)
+        array = staticmethod(jnp.array)
+        ones = staticmethod(jnp.ones)
+        zeros = staticmethod(jnp.zeros)
+        eye = staticmethod(jnp.eye)
+        linspace = staticmethod(jnp.linspace)
+        arange = staticmethod(jnp.arange)
+        newaxis = staticmethod(jnp.newaxis)
+
+        # Fourier transform
+        fft2 = staticmethod(jnp.fft.fft2)
+
 backend = NumpyBackend()
 
 def set_backend(name):
@@ -185,5 +257,8 @@ def set_backend(name):
         backend.__class__ = NumpyBackend
     elif name == 'autograd':
         backend.__class__ = AutogradBackend
+    elif name == 'jax':
+        backend.__class__ = JAXBackend
+
     else:
         raise ValueError(f"unknown backend '{name}'")

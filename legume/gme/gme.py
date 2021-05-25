@@ -8,6 +8,7 @@ from . import matrix_elements
 from legume.backend import backend as bd
 from legume.utils import get_value, ftinv, find_nearest
 
+
 class GuidedModeExp(object):
     """
     Main simulation class of the guided-mode expansion.
