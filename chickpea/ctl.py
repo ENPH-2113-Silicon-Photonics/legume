@@ -263,7 +263,7 @@ class NanoBeamCavity(CrystalTopology):
         for i in range(hole_number):
             xp.append(mirror_dist / 2 + i)
 
-        if self.span is not None and 2 * hole_number + mirror_dist - 1 > length:
+        if self.span is not None and 2 * hole_number + mirror_dist - 1 > self.length:
             raise ValueError("Cannot fit this many holes into a cavity of this length. Increase length or set to None")
 
         self.xp = np.array(xp)
