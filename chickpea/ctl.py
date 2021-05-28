@@ -249,14 +249,17 @@ class NanoBeamCavity(CrystalTopology):
         self.length = length
         self.y_spacing = y_spacing
 
-        lattice = legume.Lattice([self.length, 0], [0, y_spacing])
+        if length is None:
+            lattice = legume.Lattice([2 * hole_number + mirror_dist - 1, 0], [0, y_spacing])
+        else:
+            lattice = legume.Lattice([self.length, 0], [0, y_spacing])
         self._lattice = lattice
 
         xp = []
         for i in range(hole_number):
             xp.append(mirror_dist / 2 + i)
 
-        if length is not None and 2 * hole_number + mirror_dist > length:
+        if length is not None and 2 * hole_number + mirror_dist - 1> length:
             raise ValueError("Cannot fit this many holes into a cavity of this length. Increase length or set to None")
 
         self.xp = np.array(xp)
