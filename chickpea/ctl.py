@@ -262,7 +262,7 @@ class NanoBeamCavity(CrystalTopology):
         self.xp = np.array(xp)
         self._num_holes = len(self.xp)
 
-    def cavity(self, dx, rads) -> legume.phc.phc:
+    def cavity(self, dx=None, rads=None) -> legume.phc.phc:
         """
         Construct a Nanobeam cavity object
 
@@ -290,7 +290,7 @@ class NanoBeamCavity(CrystalTopology):
 
         cryst.add_shape(legume.Poly(eps=1, x_edges=[0, self.length, self.length, 0],
                                     y_edges=[self.wg_width / 2, self.wg_width / 2,
-                                             self.wg_width / 2 + self.y_spacing, self.wg_width / 2 + self.y_spacing]))
+                                             -self.wg_width / 2 + self.y_spacing, -self.wg_width / 2 + self.y_spacing]))
 
         # et voila! the crystal should be defined.
         return cryst
