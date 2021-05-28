@@ -1,8 +1,32 @@
 # %%
 
-import numpy as np
 import legume
 from typing import Sequence, Literal, Tuple
+import numpy as np
+
+
+class CrystalTopology:
+
+    def __init__(self):
+        pass
+
+    def cavity(self, **params) -> legume.phc.phc:
+        """
+        Return a photonic crystal topology given input parameters
+        @param params:
+        @return:
+        """
+        raise (NotImplementedError("Method must be implemented by subclass"))
+
+    def get_base_crystal(self) -> legume.phc.phc:
+        raise (NotImplementedError("Method must be implemented by subclass"))
+
+    def get_parameter_representation(self):
+        """
+
+        @return:
+        """
+        raise (NotImplementedError("Method must be implemented by subclass"))
 
 
 # %%
@@ -11,11 +35,10 @@ from typing import Sequence, Literal, Tuple
 # Starting with the only changes to the cavity being shifts.
 # All of our crystals, including the shifts, have mirror symmetry about the x and y axes.
 
-class PhotonicCrystalCavity:
+class PhotonicCrystalCavity(CrystalTopology):
 
     # dx and dy should be optional arguments
-    def __init__(self, crystal: Literal['H', 'L'], supercell_size: Tuple[int, int],
-                 thickness: float, radius: float,
+    def __init__(self, crystal: Literal['H', 'L'], supercell_size: Tuple[int, int], thickness: float, radius: float,
                  eps: float, n: int, m: int = None):
         """
         Sets the topology of a photonic crystal cavity as a Lm-n crystal or a Hn crystal.
@@ -47,6 +70,7 @@ class PhotonicCrystalCavity:
 
                   For 'H' type crystal represents nothing. Defaults to None
         """
+
         if crystal == 'L' and m is None:
             raise ValueError("L crystal requires m parameter defined")
         if crystal == 'H':
@@ -58,9 +82,9 @@ class PhotonicCrystalCavity:
         lattice = legume.Lattice([supercell_size[0], 0], [0, supercell_size[1] * np.sqrt(3) / 2])
         self._lattice = lattice
 
+        self.radius = radius
         self.thickness = thickness
         self.eps = eps
-        self.radius = radius
 
         n, m = self.crystal[1:]
         ctype = self.crystal[0]
@@ -130,8 +154,8 @@ class PhotonicCrystalCavity:
 
         else:
             return "PhotonicCrystalCavity(%s, %s, %f, %f, %f, %d, %d)" % (self.crystal[0], str(self._supercell_size),
-                                                                      self.thickness, self.radius, self.eps,
-                                                                      self.crystal[1], self.crystal[2])
+                                                                          self.thickness, self.radius, self.eps,
+                                                                          self.crystal[1], self.crystal[2])
 
     def cavity(self, dx: Sequence[float] = None,
                dy: Sequence[float] = None,
@@ -204,3 +228,72 @@ class PhotonicCrystalCavity:
         cryst.add_layer(d=self.thickness, eps_b=self.eps)
         cryst.add_shape(legume.Circle(x_cent=0, y_cent=0, r=self.radius))
         return cryst
+
+
+class NanoBeamCavity(CrystalTopology):
+
+    def __init__(self, eps_wg=11.68, eps_ins=3.85, thickness=0.513, wg_width=1.17, hole_number=11, radius=0.35,
+                 mirror_dist=1.92, bridge_width=0, cut_width=0, length=46.7, y_spacing=10):
+        super().__init__()
+
+        self.hole_number = hole_number
+        self.thickness = thickness
+        self.wg_width = wg_width
+        self.radius = radius
+        self.mirror_width = mirror_dist
+        self.eps_wg = eps_wg
+        self.eps_ins = eps_ins
+
+        self.bridge_width = bridge_width
+        self.cut_width = cut_width
+        self.length = length
+        self.y_spacing = y_spacing
+
+        lattice = legume.Lattice([self.length, 0], [0, y_spacing])
+        self._lattice = lattice
+
+        xp = []
+        for i in range(hole_number):
+            xp.append(mirror_dist / 2 + i)
+
+        if length is not None and 2 * hole_number + mirror_dist > length:
+            raise ValueError("Cannot fit this many holes into a cavity of this length. Increase length or set to None")
+
+        self.xp = np.array(xp)
+        self._num_holes = len(self.xp)
+
+    def cavity(self, dx, rads) -> legume.phc.phc:
+        """
+        Construct a Nanobeam cavity object
+
+        @param dx: array of displacement of holes in the x direction. Length of array must be self.num_holes
+        @param rads: array of ratios to radius, hole size will be scaled by rads. Length of array must be self.num_holes
+
+        @return: photonic crystal cavity object
+        """
+
+        if dx is None:
+            dx = np.zeros((self._num_holes,))
+
+        if rads is None:
+            rads = np.ones((self._num_holes,))
+
+        cryst = legume.PhotCryst(self._lattice, eps_l=self.eps_ins)
+
+        cryst.add_layer(d=self.thickness, eps_b=self.eps_wg)
+        # Add holes with double mirror symmetry.
+
+        for ic, x in enumerate(self.xp):
+            cryst.add_shape(legume.Circle(eps=1, x_cent=x + dx[ic], r=rads[ic] * self.radius))
+            if self.length is None and ic != self._num_holes - 1:
+                cryst.add_shape(legume.Circle(eps=1, x_cent=-(x + dx[ic]), r=rads[ic] * self.radius))
+
+        cryst.add_shape(legume.Poly(eps=1, x_edges=[0, self.length, self.length, 0],
+                                    y_edges=[self.wg_width / 2, self.wg_width / 2,
+                                             self.wg_width / 2 + self.y_spacing, self.wg_width / 2 + self.y_spacing]))
+
+        # et voila! the crystal should be defined.
+        return cryst
+
+    def get_base_crystal(self) -> legume.phc.phc:
+        pass
