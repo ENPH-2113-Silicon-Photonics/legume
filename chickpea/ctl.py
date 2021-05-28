@@ -292,8 +292,9 @@ class NanoBeamCavity(CrystalTopology):
 
         for ic, x in enumerate(self.xp):
             cryst.add_shape(legume.Circle(eps=1, x_cent=x + dx[ic], r=rads[ic] * self.radius))
-            if self.span is not None and ic != self._num_holes - 1:
-                cryst.add_shape(legume.Circle(eps=1, x_cent=-(x + dx[ic]), r=rads[ic] * self.radius))
+            if self.span is None and ic == self._num_holes - 1:
+                continue
+            cryst.add_shape(legume.Circle(eps=1, x_cent=-(x + dx[ic]), r=rads[ic] * self.radius))
 
         cryst.add_shape(legume.Poly(eps=1, x_edges=[0, self.length, self.length, 0],
                                     y_edges=[self.wg_width / 2, self.wg_width / 2,
