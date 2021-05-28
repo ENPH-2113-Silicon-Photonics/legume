@@ -246,20 +246,24 @@ class NanoBeamCavity(CrystalTopology):
 
         self.bridge_width = bridge_width
         self.cut_width = cut_width
-        self.length = length
-        self.y_spacing = y_spacing
 
         if length is None:
-            lattice = legume.Lattice([2 * hole_number + mirror_dist - 1, 0], [0, y_spacing])
+            self.length = 2 * hole_number + mirror_dist - 1
+            self.span=True
         else:
-            lattice = legume.Lattice([self.length, 0], [0, y_spacing])
+            self.length = length
+            self.span=False
+
+        self.y_spacing = y_spacing
+
+        lattice = legume.Lattice([self.length, 0], [0, y_spacing])
         self._lattice = lattice
 
         xp = []
         for i in range(hole_number):
             xp.append(mirror_dist / 2 + i)
 
-        if length is not None and 2 * hole_number + mirror_dist - 1> length:
+        if self.span is not None and 2 * hole_number + mirror_dist - 1 > length:
             raise ValueError("Cannot fit this many holes into a cavity of this length. Increase length or set to None")
 
         self.xp = np.array(xp)
@@ -288,7 +292,7 @@ class NanoBeamCavity(CrystalTopology):
 
         for ic, x in enumerate(self.xp):
             cryst.add_shape(legume.Circle(eps=1, x_cent=x + dx[ic], r=rads[ic] * self.radius))
-            if self.length is None and ic != self._num_holes - 1:
+            if self.span is not None and ic != self._num_holes - 1:
                 cryst.add_shape(legume.Circle(eps=1, x_cent=-(x + dx[ic]), r=rads[ic] * self.radius))
 
         cryst.add_shape(legume.Poly(eps=1, x_edges=[0, self.length, self.length, 0],
