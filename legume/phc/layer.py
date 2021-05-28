@@ -118,6 +118,15 @@ class ShapesLayer(Layer):
                 raise ValueError("Argument to add_shape must only contain "
                 "instances of legume.Shape (e.g legume.Circle or legume.Poly)")
 
+    def remove_shape(self, index):
+        """
+            remove a shape from the list of shapes.
+        """
+
+        shape = self.shapes.pop(index)
+        self.eps_avg = self.eps_avg - (shape.eps - self.eps_b) * \
+                                shape.area/self.lattice.ec_area
+
     def compute_ft(self, gvec):
         """
         Compute the 2D Fourier transform of the layer permittivity.
