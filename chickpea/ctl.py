@@ -233,7 +233,7 @@ class PhotonicCrystalCavity(CrystalTopology):
 class NanoBeamCavity(CrystalTopology):
 
     def __init__(self, eps_wg=11.68, eps_ins=3.85, thickness=0.513, wg_width=1.17, hole_number=11, radius=0.35,
-                 mirror_dist=1.92, bridge_width=0, cut_width=0, length=46.7, y_spacing=10):
+                 mirror_dist=0.8233, bridge_width=0, cut_width=0, length=46.7, y_spacing=10):
         super().__init__()
 
         self.hole_number = hole_number
