@@ -100,6 +100,7 @@ class NumpyBackend(Backend):
     linspace = staticmethod(np.linspace)
     arange = staticmethod(np.arange)
     newaxis = staticmethod(np.newaxis)
+    fft2 = staticmethod(np.fft.fft2)
 
 if AG_AVAILABLE: 
     class AutogradBackend(Backend):
@@ -159,6 +160,8 @@ if AG_AVAILABLE:
         arange = staticmethod(npa.arange)
         newaxis = staticmethod(npa.newaxis)
 
+        # Fourier transform
+        fft2 = staticmethod(npa.fft.fft2)
 backend = NumpyBackend()
 
 def set_backend(name):
