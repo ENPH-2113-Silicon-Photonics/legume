@@ -775,7 +775,7 @@ def field(
         sp = 1
         f1, axs = plt.subplots(1, sp, constrained_layout=True)
 
-        f = np.zeros((N1, N2), dtype=np.complex128)
+        f = np.zeros((N2, N1), dtype=np.complex128)
 
         for ic, comp in enumerate(component):
             f += fi[comp]**2
@@ -819,17 +819,7 @@ def field(
 
         title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
                                                         field.capitalize(), component, mind, kind)
-        title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
-        title_str += "$f = %.2f$" % (struct.freqs[kind, mind])
-        if str_type == 'gme':
-            if struct.freqs_im != []:
-                if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
-                    title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind] / 2 /
-                                                    struct.freqs_im[kind, mind])
-                else:
-                    title_str += " $Q = $Inf\n"
 
-        ax.set_title(title_str)
     else:
         sp = len(component)
         f1, axs = plt.subplots(1, sp, constrained_layout=True)
@@ -872,16 +862,16 @@ def field(
 
             title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
                                         field.capitalize(), comp, mind, kind)
-            title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
-            title_str += "$f = %.2f$" % (struct.freqs[kind, mind])
-            if str_type == 'gme':
-                if struct.freqs_im != []:
-                    if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
-                        title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind]/2/
-                                                struct.freqs_im[kind, mind])
-                    else:
-                        title_str += " $Q = $Inf\n"
 
-            ax.set_title(title_str)
+    title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
+    title_str += "$f = %.4f$" % (struct.freqs[kind, mind])
+    if str_type == 'gme':
+        if len(struct.freqs_im) != 0:
+            if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
+                title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind] / 2 /
+                                                struct.freqs_im[kind, mind])
+            else:
+                title_str += " $Q = $Inf\n"
+    ax.set_title(title_str)
 
     return f1
