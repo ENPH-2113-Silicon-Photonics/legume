@@ -1,3 +1,3 @@
 from .cma import CavityModeAnalysis
-from .pcc import PhotonicCrystalCavity
-
+from .ctl import PhotonicCrystalCavity
+from .ctl import NanoBeamCavity
