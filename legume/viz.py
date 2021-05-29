@@ -17,7 +17,9 @@ def bands(
     Q_cmap='viridis', 
     markersize=6, 
     markeredgecolor='w', 
-    markeredgewidth=1.5
+    markeredgewidth=1.5,
+    trim_light_cone = False,
+    lc_trim = 0,
 ):
     """Plot photonic band structure from a GME simulation
 
@@ -69,6 +71,15 @@ def bands(
 
     X = np.tile(X0.reshape(len(X0),1), (1, gme.freqs.shape[1]))
 
+    if trim_light_cone is False:
+        freqs = gme.freqs
+    elif trim_light_cone is True:
+        k_squared = np.tile((gme.kpoints[0]**2+gme.kpoints[1]**2)**(1/2), (gme.numeig, 1)).T
+        filter = gme.freqs/(np.abs(k_squared - lc_trim) + 1e-10) <= 1/(2*np.pi)
+
+        freqs = gme.freqs[filter]
+        X = X[filter]
+
     if ax is None:
         fig, ax = plt.subplots(1, 1, constrained_layout=True, figsize=figsize)
     if Q:
@@ -78,13 +89,13 @@ def bands(
         Q = gme.freqs.flatten()/2/freqs_im
         Q_max = np.max(Q[Q<Q_clip])
 
-        p = ax.scatter(X.flatten(), gme.freqs.flatten(), 
+        p = ax.scatter(X.flatten(), gme.freqs.flatten(),
                         c=Q, cmap=Q_cmap, s=markersize**2, vmax=Q_max, 
                         norm=mpl.colors.LogNorm(), edgecolors=markeredgecolor, 
                         linewidth=markeredgewidth)
         plt.colorbar(p, ax=ax, label="Radiative quality factor", extend="max")
     else:
-        ax.plot(X, gme.freqs, 'o', c="#1f77b4", label="", ms=markersize, 
+        ax.plot(X, freqs, 'o', c="#1f77b4", label="", ms=markersize,
                     mew=markeredgewidth, mec=markeredgecolor)
 
     if cone:
@@ -632,7 +643,7 @@ def reciprocal(struct):
     fig, ax = plt.subplots(1, constrained_layout=True)
     plt.plot(struct.gvec[0, :], struct.gvec[1, :], 'bx')
     ax.set_title("Reciprocal lattice")
-
+    return fig, ax
 
 def field(
     struct, 
@@ -764,7 +775,7 @@ def field(
         sp = 1
         f1, axs = plt.subplots(1, sp, constrained_layout=True)
 
-        f = np.zeros((N1, N2), dtype=np.complex128)
+        f = np.zeros((N2, N1), dtype=np.complex128)
 
         for ic, comp in enumerate(component):
             f += fi[comp]**2
@@ -808,17 +819,7 @@ def field(
 
         title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
                                                         field.capitalize(), component, mind, kind)
-        title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
-        title_str += "$f = %.2f$" % (struct.freqs[kind, mind])
-        if str_type == 'gme':
-            if struct.freqs_im != []:
-                if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
-                    title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind] / 2 /
-                                                    struct.freqs_im[kind, mind])
-                else:
-                    title_str += " $Q = $Inf\n"
 
-        ax.set_title(title_str)
     else:
         sp = len(component)
         f1, axs = plt.subplots(1, sp, constrained_layout=True)
@@ -861,16 +862,16 @@ def field(
 
             title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
                                         field.capitalize(), comp, mind, kind)
-            title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
-            title_str += "$f = %.2f$" % (struct.freqs[kind, mind])
-            if str_type == 'gme':
-                if struct.freqs_im != []:
-                    if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
-                        title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind]/2/
-                                                struct.freqs_im[kind, mind])
-                    else:
-                        title_str += " $Q = $Inf\n"
 
-            ax.set_title(title_str)
+    title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
+    title_str += "$f = %.4f$" % (struct.freqs[kind, mind])
+    if str_type == 'gme':
+        if len(struct.freqs_im) != 0:
+            if np.abs(struct.freqs_im[kind, mind]) > 1e-20:
+                title_str += " $Q = %.2E$\n" % (struct.freqs[kind, mind] / 2 /
+                                                struct.freqs_im[kind, mind])
+            else:
+                title_str += " $Q = $Inf\n"
+    ax.set_title(title_str)
 
     return f1

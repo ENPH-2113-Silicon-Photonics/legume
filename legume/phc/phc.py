@@ -4,6 +4,7 @@ from legume.backend import backend as bd
 import legume.utils as utils
 from . import ShapesLayer, FreeformLayer, Lattice
 
+
 class PhotCryst(object):
     """
     Class for a photonic crystal which can contain a number of layers.
@@ -78,6 +79,29 @@ class PhotCryst(object):
 
         self.claddings[1].z_min = z_min + d
         self.layers.append(layer)
+
+    def initialize_ff_layer(self, eps_dist, layer=-1, cladding=None):
+
+        if cladding is not None:
+            if cladding==0 or cladding=='l':
+                lay = self.claddings[0]
+            elif cladding==1 or cladding=='u':
+                lay = self.claddings[1]
+            else:
+                raise ValueError("'cladding' must be 0 or 'l' for lower" \
+                    "cladding and 1 or 'u' for upper cladding")
+        else:
+            if layer >= len(self.layers):
+                raise ValueError("Layer index larger than total number of "\
+                    "layers")
+            else:
+                lay = self.layers[layer]
+
+        if lay.layer_type == 'freeform':
+            lay.initialize(eps_dist)
+        else:
+            raise TypeError("Only Freeform layers can be initialized")
+
 
     def add_shape(self, shapes, layer=-1, cladding=None):
         """

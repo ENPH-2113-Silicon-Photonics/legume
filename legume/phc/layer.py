@@ -118,10 +118,20 @@ class ShapesLayer(Layer):
                 raise ValueError("Argument to add_shape must only contain "
                 "instances of legume.Shape (e.g legume.Circle or legume.Poly)")
 
+    def remove_shape(self, index):
+        """
+            remove a shape from the list of shapes.
+        """
+
+        shape = self.shapes.pop(index)
+        self.eps_avg = self.eps_avg - (shape.eps - self.eps_b) * \
+                                shape.area/self.lattice.ec_area
+
     def compute_ft(self, gvec):
         """
         Compute the 2D Fourier transform of the layer permittivity.
         """
+
         FT = bd.zeros(gvec.shape[1])
         for shape in self.shapes:
             # Note: compute_ft() returns the FT of a function that is one 
@@ -168,40 +178,91 @@ class ShapesLayer(Layer):
 
         return eps_r
 
+
 class FreeformLayer(Layer):
     """
     Layer with permittivity defined by a freeform distribution on a grid
     """
-    def __init__(self, lattice, z_min=0, z_max=0, eps_init=1, res=10):
-        super().__init__(lattice, z_min, z_max, eps_b)
+    def __init__(self, lattice, z_min=0, z_max=0, eps_dist=None, eps_b=1):
+        super().__init__(lattice, z_min, z_max)
 
+
+        # TODO: Is this a neccessary restriction? Is there a less strict restriciton?
+
+        a1 = self.lattice.a1
+
+        a2 = self.lattice.a2
+
+        if bd.dot(a1, a2) != 0:
+            raise ValueError("Only Rectangular Lattices for the FreeformLayer")
+
+        self.eps_b=eps_b
         # Initialize average permittivity - needed for guided-mode computation
-        self.eps_avg = np.array(eps_init)
+        if eps_dist is not None:
+            self.res = eps_dist.shape
 
+            self.eps_avg = np.sum(eps_dist)/(self.res[0]*self.res[1])
+
+            self._eps_dist = eps_dist
+            self._eps_ft = np.fft.fft2(eps_dist)
+            self.initialized = True
+        else:
+
+            self.eps_avg = np.array(eps_b)
+
+            self.res = None
+            self._eps_dist = None
+            self._eps_ft = None
+            self.initialized = False
         # Initialize an empty list of shapes
         self.layer_type = 'freeform'
-        self._init_grid(res)
 
-    def _init_grid(res):
-        """
-        Initialize a grid with resolution res, with res[0] pixels along the 
-        lattice.a1 direction and res[1] pixels along the lattice.a2 direction
-        """
-        res = np.array(res)
-        if res.size == 1: 
-            res = res * np.ones((2,))
+    def initialize(self, eps_dist):
 
-    def compute_ft(self, gvec):
+        self.res = eps_dist.shape
+        self.eps_avg = np.sum(eps_dist)/(self.res[0]*self.res[1])
+
+        self._eps_dist = eps_dist
+        self._eps_ft = np.fft.fft2(eps_dist)
+
+        self.initialized = True
+
+    def compute_ft(self, inds):
+        if self.initialized:
+            FT = []
+            for (i_x, i_y) in inds.T:
+                FT.append(self._eps_ft[i_x, i_y]*np.exp(-1j*np.pi*(i_x+i_y)))
+
+            FT = np.array(FT, dtype=np.complex128)
+
+        else:
+            FT = bd.zeros(inds.shape[1])
+
+        # Apply some final coefficients
+        # Note the hacky way to set the zero element so as to work with
+        # 'autograd' backend
         """
-        Compute fourier transform over gvec: [2 x Ng] numpy array
+        Compute the 2D Fourier transform of the layer permittivity from the *indices* of the gvectors
         """
-        raise NotImplementedError("compute_ft() is not yet imlemented for"
-            "the Freeform layer")
+        ind0 = bd.abs(inds[0, :]) + bd.abs(inds[1, :]) < 1e-10
+        FT = FT / (self.res[0]*self.res[1])
+        FT = FT*(1-ind0) + self.eps_avg*ind0
+
+        return FT
 
     def get_eps(self, points):
         """
         Compute the permittivity of the layer over a 'points' tuple containing
-        a meshgrid in x, y defined by arrays of same shape
+        a meshgrid in x, y defined by arrays of same shape.
         """
-        raise NotImplementedError("get_eps() is not yet imlemented for"
-            "the Freeform layer")
+        xmesh, ymesh = points
+        if self.initialized:
+
+            inds_x = np.int_(xmesh * self.res[0] / np.linalg.norm(self.lattice.a1))
+            inds_y = np.int_(ymesh * self.res[1] / np.linalg.norm(self.lattice.a2))
+            return self._eps_dist[inds_x, inds_y]
+
+        else:
+
+            return self.eps_b * bd.ones(xmesh.shape)
+
