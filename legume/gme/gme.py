@@ -531,6 +531,7 @@ class GuidedModeExp(object):
                         As1, Bs1, chis1, indmode2, oms2, As2, Bs2,
                         chis2, pq)
 
+
                 mat_blocks[im1].append(mat_block)
 
         # Store how many modes total were included in the matrix
@@ -779,7 +780,11 @@ class GuidedModeExp(object):
 
             self._print("Running k-point %d of %d" % (ik + 1, kpoints.shape[1]),
                         flush=True)
+            t = time.time()
+
             mat = self._construct_mat(kind=ik)
+            self.t_mat = time.time() - t
+
             if self.numeig > mat.shape[0]:
                 raise ValueError("Requested number of eigenvalues 'numeig' "
                                  "larger than total size of basis set. Reduce 'numeig' or "
@@ -818,6 +823,8 @@ class GuidedModeExp(object):
         self._print("", flush=True)
         self._print("%1.4fs total time for real part of frequencies, of which"
                     % (time.time() - t_start))
+        self._print("  %1.4fs for matrix construction"
+                    % (self.t_mat))
         self._print("  %1.4fs for guided modes computation using"
                     " the gmode_compute='%s' method"
                     % (self.t_guided, self.gmode_compute.lower()))

@@ -1,5 +1,5 @@
 import numpy as np
-
+import time
 from legume.backend import backend as bd
 from .slab_modes import I_alpha, J_alpha
 
@@ -38,7 +38,6 @@ def mat_te_te(eps_array, d_array, eps_inv_mat, indmode1, oms1,
     indmat = np.ix_(indmode1, indmode2)
     # Number of layers
     Nl = eps_array.size
-
     # Build the matrix layer by layer
     mat = bd.zeros((indmode1.size, indmode2.size))
     for il in range(0, Nl):
@@ -77,23 +76,28 @@ def mat_tm_tm(eps_array, d_array, eps_inv_mat, gk, indmode1, oms1,
     # Build the matrix layer by layer
     mat = bd.zeros((indmode1.size, indmode2.size))
     for il in range(0, Nl):
-        mat = mat + eps_inv_mat[il][indmat]*( 
-        (pp[indmat] * bd.outer(bd.conj(chis1[il, :]), chis2[il, :]) + \
-        bd.outer(gk[indmode1], gk[indmode2])) * ( 
-            bd.outer(bd.conj(As1[il, :]), As2[il, :]) * 
-            IJ_layer(il, Nl, chis2[il, :] - bd.conj(chis1[il, :][:, bd.newaxis]),
-                d_array) + 
-            bd.outer(bd.conj(Bs1[il, :]), Bs2[il, :]) * 
-            IJ_layer(il, Nl, -chis2[il, :] + bd.conj(chis1[il, :][:, bd.newaxis]),
-                d_array)) - \
-        (pp[indmat] * bd.outer(bd.conj(chis1[il, :]), chis2[il, :]) - \
-        bd.outer(gk[indmode1], gk[indmode2])) * ( 
-            bd.outer(bd.conj(As1[il, :]), Bs2[il, :]) *
-            IJ_layer(il, Nl, -chis2[il, :] - bd.conj(chis1[il, :][:, bd.newaxis]),
-                d_array) + 
-            bd.outer(bd.conj(Bs1[il, :]), As2[il, :]) *
-            IJ_layer(il, Nl, chis2[il, :] + bd.conj(chis1[il, :][:, bd.newaxis]),
-                d_array))  )
+        t = time.time()
+
+        chis1_conj=bd.conj(chis1[il, :])
+
+        chis_12_out = pp[indmat] * bd.outer(chis1_conj, chis2[il, :])
+
+        gk_12_out=bd.outer(gk[indmode1], gk[indmode2])
+
+        mat = mat + eps_inv_mat[il][indmat] * \
+              ((chis_12_out + gk_12_out) *
+                (bd.outer(bd.conj(As1[il, :]), As2[il, :]) *
+                IJ_layer(il, Nl, chis2[il, :] - chis1_conj[:, bd.newaxis],d_array) +
+
+                bd.outer(bd.conj(Bs1[il, :]), Bs2[il, :]) *
+                IJ_layer(il, Nl, -chis2[il, :] + chis1_conj[:, bd.newaxis], d_array)) -
+
+               (chis_12_out - gk_12_out) *
+                (bd.outer(bd.conj(As1[il, :]), Bs2[il, :]) *
+                IJ_layer(il, Nl, -chis2[il, :] - chis1_conj[:, bd.newaxis], d_array) +
+
+                bd.outer(bd.conj(Bs1[il, :]), As2[il, :]) *
+                IJ_layer(il, Nl, chis2[il, :] + chis1_conj[:, bd.newaxis], d_array)))
 
     return mat
 

@@ -148,7 +148,7 @@ class Lattice(object):
             Two arrays defining a linear grid in `x` and `y`.
         """
         if periods == None:
-            if self.type == 'square' or self.type == 'rectangular':
+            if self.type in ['square', 'rectangular', 'custom_square', 'custom_rectangular']:
                 periods = [1, 1]
             else:
                 periods = [2, 2]
