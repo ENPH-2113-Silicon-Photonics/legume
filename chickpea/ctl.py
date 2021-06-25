@@ -410,6 +410,12 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
         cryst.add_shape(legume.Circle(x_cent=0, y_cent=0, r=self.radius, eps=self.eps_circ))
         return cryst
 
+    def hex_coord_convert(self, coord):
+        if self.type == 'hexagonal' and coord[1] < 0:
+            return (int(coord[0]-self._supercell_size[1] / 2) % self._supercell_size[0], coord[1])
+        else:
+            return coord
+
     def cavity(self, dx: Sequence[float] = None,
                dy: Sequence[float] = None,
                frads: Sequence[float] = None,
