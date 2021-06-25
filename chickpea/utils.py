@@ -6,6 +6,7 @@ from PIL import Image, ImagePalette
 import scipy as sp
 import legume
 
+
 def lowpass_downsample(bitmap, factor):
     """
 
@@ -27,6 +28,7 @@ def lowpass_downsample(bitmap, factor):
     bitmap_lowpass = np.real(np.fft.ifft2(dft_trunc) * dft_trunc.shape[0] * dft_trunc.shape[1])
 
     return bitmap_lowpass
+
 
 def import_eps_image(img_path, eps_map, tol=5):
     """
@@ -63,13 +65,11 @@ def import_eps_image(img_path, eps_map, tol=5):
 
 
 def find_band_gaps(gme, order, sample_rate=10, band_tol=0.1, trim_lc=False, lc_trim=0, numeig=20):
-
     lattice = gme.phc.lattice
 
     bz = lattice.get_irreducible_brioullin_zone_vertices()
 
     path = lattice.bz_path(bz, [sample_rate] * (len(bz) - 1))
-
 
     gme.run(kpoints=path['kpoints'],
             gmode_inds=order,
@@ -107,10 +107,104 @@ def find_band_gaps(gme, order, sample_rate=10, band_tol=0.1, trim_lc=False, lc_t
     return band_gaps, k_air, k_di
 
 
-def get_poynting_vector(E, H):
-    assert E.shape[0]==3
-    assert H.shape[0]==3
+def unfold_bands(super_gme, prim_gme, branch_start=-np.pi):
+    # Collect g-vectors of primitive and supercell expansions.
+    prim_gvecs = prim_gme.gvec.reshape(2, prim_gme.n1g, prim_gme.n2g)
 
-    return np.cross(E,H, axis=0)
+    gvecs = super_gme.gvec.reshape(2, super_gme.n1g, super_gme.n2g)
+
+    # TODO: We should try generating this other_mask in more analytic way.
+    #   IE. Mask is periodic, we just need to find starting point. (0,0)
+    #       New input would be supercell size (periodicity) and super_gme, we don't need prim_gme.
+
+    mask = np.logical_and(np.isin(gvecs[0], prim_gvecs[0]), np.isin(gvecs[1], prim_gvecs[1]))
+
+    # Determine periodicity of the crystal.
+
+    lattice = super_gme.phc.lattice
+    base_lattice = prim_gme.phc.lattice
+
+    b1 = lattice.b1
+    b2 = lattice.b2
+    prim_b1 = base_lattice.b1
+    prim_b2 = base_lattice.b2
+
+    Nx = np.int_(np.rint(prim_b1 / b1))[0]
+    Ny = np.int_(np.rint(prim_b2 / b2))[1]
+
+    # Pad the other_mask so that when we roll the other_mask we don't create artifacts bleed array.
+    # TODO If we generate other_mask from periodicity can we simply create shifted-period other_mask.
+
+    pad_mask = np.pad(mask, ((Nx, 0), (Ny, 0)))
+
+    dispersion = [[], [], []]
+    probabilities = []
+
+    for k in range(len(super_gme.kpoints.transpose())):
+        for w in range(len(super_gme.eigvecs[k].transpose())):
+            probability = []
+            for i in range(Nx):
+                probability.append([])
+                for j in range(Ny):
+                    trans_vec = (i, j)
+
+                    # Roll padded other_mask and truncate to shape of eigen vector.
+
+                    trans_mask = np.roll(pad_mask, trans_vec, axis=(0, 1))[Nx:, Ny:]
+
+                    eig = super_gme.eigvecs[k].transpose()[w].reshape((super_gme.n1g, super_gme.n2g))
+                    prob = np.sum(np.square(np.abs(eig[trans_mask])))
+
+                    probability[-1].append(prob)
+
+            probability = np.asarray(probability)
+
+            # Normalize probability
+            probability = probability / np.sum(probability)
+
+            args = np.argwhere(probability == probability.max())[0]
+            trans = (args[0]) * b1 + (args[1]) * b2
+
+            new_k = super_gme.kpoints.T[k] + trans
+            # Shift K to appropriate branch of mod function.
+            new_k = np.mod(new_k - branch_start, 2 * np.pi) + branch_start
+
+            dispersion[0].append(super_gme.freqs[k][w])
+            dispersion[1].append(new_k[0])
+            dispersion[2].append([k, w])
+            probabilities.append(probability)
+
+    return np.array(dispersion), np.array(probabilities)
 
 
+def fixed_point_cluster(mean, diff, N, kernel='gaussian', u=None, reflect=False):
+    """
+    Generates a cluster of points.
+    :param mean: Mean to generate points around
+    :param diff: difference from mean. Distribution is anchored at these points.
+    :param N: Number of points to generate.
+    :param kernel: Function governing cluster. Should be non-negative and continuous.
+                   If callable object given runs that function.
+                   If string given looks up function from preset table.
+    :param u: single parameter governing preset kernels
+    :param reflect: Reflect the cluster around the zero axis.
+    :return: cluster of points.
+    """
+
+    kern_dict = {"binomial": lambda x: np.abs(x + (u - 1) / (3 * diff ** 2) * x ** 3),
+                 "id": lambda x: np.abs(x)}
+
+    if isinstance(kernel, str):
+        kernel = kern_dict[kernel]
+    elif callable(kernel):
+        kernel = kernel
+    else:
+        raise ValueError("Kernel not callable or string.")
+
+    lin_array = np.linspace(mean - diff, mean + diff, N)
+    clustered_array = np.sign(lin_array - mean) * diff * kernel(lin_array - mean) / kernel(diff) + mean
+
+    if reflect:
+        clustered_array = np.concatenate((-clustered_array, clustered_array))
+
+    return clustered_array
