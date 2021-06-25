@@ -251,10 +251,10 @@ class NanoBeamCavity(CrystalTopology):
 
         if length is None:
             self.length = 2 * hole_number + mirror_dist - 1
-            self.span=True
+            self.span = True
         else:
             self.length = length
-            self.span=False
+            self.span = False
 
         self.y_spacing = y_spacing
 
@@ -311,37 +311,44 @@ class NanoBeamCavity(CrystalTopology):
 
 class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
-
-    def __init__(self, type: Literal['hexagonal', 'square'], supercell_size: Tuple[int, int], thickness: float, radius: float,
-                 eps_b: float, eps_circ, eps_l: float= 1, eps_u: float = 1):
-        self.eps_b=eps_b
-        self.eps_circ=eps_circ
-        self.thickness=thickness
-        self.radius=radius
-        self.type=type.lower()
+    def __init__(self, type: Literal['hexagonal', 'square'], supercell_size: Tuple[int, int], thickness: float,
+                 radius: float, eps_b: float, eps_circ, eps_l: float = 1, eps_u: float = 1):
+        super().__init__()
+        self.eps_b = eps_b
+        self.eps_circ = eps_circ
+        self.thickness = thickness
+        self.radius = radius
+        self.type = type.lower()
         self._supercell_size = supercell_size
 
-        self.eps_l=eps_l
-        self.eps_u=eps_u
+        self.dist_bound = [-(1 / 2 - self.radius), 1 / 2 - self.radius]
+        self.rad_bound = [0.85, 1]
+
+        eps_ratio = self.eps_circ / self.eps_b
+
+        self.eps_bound = [min(eps_ratio, 1 / eps_ratio), 1.5]
+
+        self.eps_l = eps_l
+        self.eps_u = eps_u
 
         Nx, Ny = self._supercell_size
 
-        ix, iy = np.meshgrid(np.array(range(Nx),dtype=np.int_), np.array(range(Ny),dtype=np.int_))
+        ix, iy = np.meshgrid(np.array(range(Nx), dtype=np.int_), np.array(range(Ny), dtype=np.int_))
         self.init_grid = (ix.T, iy.T)
 
         if self.type == 'hexagonal':
             if Ny % 2 == 1:
                 raise ValueError("For periodicity Y periods of hex lattice should always be even.")
 
+            self.pos_grid = np.array([(self.init_grid[0] + 0.5 * self.init_grid[1]) % Nx,
+                                      np.sqrt(3) / 2 * (self.init_grid[1])])
 
-            self.pos_grid = np.array([(self.init_grid[0] + 0.5*self.init_grid[1]) % Nx,
-                                      np.sqrt(3)/2*(self.init_grid[1])])
-
-            lattice = legume.Lattice([supercell_size[0], 0], [0, (supercell_size[1])* np.sqrt(3) / 2 ])
+            lattice = legume.Lattice([supercell_size[0], 0], [0, (supercell_size[1]) * np.sqrt(3) / 2])
             self._lattice = lattice
 
         elif self.type == 'square':
-            self.xgrid, self.ygrid = np.meshgrid(np.array(range(Nx),dtype=np.float64), np.array(range(Ny), dtype=np.float64))
+            self.xgrid, self.ygrid = np.meshgrid(np.array(range(Nx), dtype=np.float64),
+                                                 np.array(range(Ny), dtype=np.float64))
             self.pos_grid = (self.xgrid.T, self.ygrid.T)
 
             lattice = legume.Lattice([supercell_size[0], 0], [0, supercell_size[1]])
@@ -350,20 +357,27 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
         else:
             raise ValueError("Type must be hexagonal or square")
 
-        self.hole_grid=np.tile(np.expand_dims(np.array([eps_circ,radius]),axis=0), (Nx,Ny,1))
+        self.hole_grid = np.tile(np.expand_dims(np.array([eps_circ, radius]), axis=0), (Nx, Ny, 1))
 
+        self.symmetry = 'None'
+        self.sym_mask = np.ones((Nx, Ny))
+        self.sym_cell_shape = supercell_size
 
+        self.x_bounds = [self.dist_bound] * Nx * Ny
+        self.y_bounds = [self.dist_bound] * Nx * Ny
+        self.rad_bounds = [self.rad_bound] * Nx * Ny
+        self.eps_bounds = [self.eps_bound] * Nx * Ny
 
     def replace_hole(self, coord, eps=None, radius=None):
         hole_list = self.hole_grid.tolist()
 
         if self.type == 'hexagonal' and coord[1] < 0:
-            coord=(int(self._supercell_size[1]/2+coord[0]) % self._supercell_size[0],coord[1])
+            coord = (int(self._supercell_size[1] / 2 + coord[0]) % self._supercell_size[0], coord[1])
         if eps is None:
-            eps=hole_list[coord[0]][coord[1]][0]
+            eps = hole_list[coord[0]][coord[1]][0]
 
         if radius is None:
-            radius=hole_list[coord[0]][coord[1]][1]
+            radius = hole_list[coord[0]][coord[1]][1]
 
         hole_list[coord[0]][coord[1]] = [eps, radius]
 
@@ -410,6 +424,136 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
         cryst.add_shape(legume.Circle(x_cent=0, y_cent=0, r=self.radius, eps=self.eps_circ))
         return cryst
 
+    def set_symmetry_and_param_mask(self, symmetry=None, x_mask=None, y_mask=None, rad_mask=None, eps_mask=None):
+        Nx, Ny = self._supercell_size
+
+        symmetry = symmetry.lower()
+        if symmetry == 'none' or symmetry is None:
+            self.sym_mask = np.ones((Nx, Ny))
+
+        elif self.type == 'square':
+            if symmetry == 'x_mirror':
+                shape = (Nx // 2, Ny)
+                if Nx % 2 == 0:
+                    self.sym_mask = np.vstack((np.ones(shape), np.zeros(shape)))
+                else:
+                    shape = ((Nx - 1) // 2, Ny)
+                    self.sym_mask = np.vstack((np.ones(shape), 1 / 2 * np.ones((1, shape[1])), np.zeros(shape)))
+
+                self.sym_cell_shape = ((Nx + 1) // 2, Ny)
+
+            elif symmetry == 'y_mirror':
+                shape = (Nx, Ny // 2)
+                if Ny % 2 == 0:
+                    self.sym_mask = np.hstack((np.zeros(shape), np.ones(shape)))
+                else:
+                    self.sym_mask = np.hstack((np.zeros(shape), 1 / 2 * np.ones((shape[0], 1)), np.ones(shape)))
+                self.sym_cell_shape = (Nx, (Ny + 1) // 2)
+
+            elif symmetry == 'dihedral':
+                shape = (Nx // 2, Ny // 2)
+                if Nx % 2 == 0 and Ny % 2 == 0:
+                    col1 = np.hstack((np.zeros(shape), np.ones(shape)))
+                    col2 = np.hstack((np.zeros(shape), np.zeros(shape)))
+
+                    self.sym_mask = np.vstack((col1, col2))
+                elif Nx % 2 == 0 and Ny % 2 == 1:
+                    col1 = np.hstack((np.zeros(shape), 1 / 2 * np.ones((shape[0], 1)), np.ones(shape)))
+                    col2 = np.hstack((np.zeros(shape), np.zeros((shape[0], 1)), np.zeros(shape)))
+                    self.sym_mask = np.vstack((col1, col2))
+
+                elif Nx % 2 == 1 and Ny % 2 == 0:
+                    col1 = np.hstack((np.zeros(shape), np.ones(shape)))
+                    col2 = np.hstack((np.zeros((1, shape[1])), 1 / 2 * np.ones((1, shape[1]))))
+                    col3 = np.hstack((np.zeros(shape), np.zeros(shape)))
+
+                    self.sym_mask = np.vstack((col1, col2, col3))
+
+                elif Nx % 2 == 1 and Ny % 2 == 1:
+                    col1 = np.hstack((np.zeros(shape), 1 / 2 * np.ones((shape[0], 1)), np.ones(shape)))
+                    col2 = np.hstack((np.zeros((1, shape[1])), 1 / 4 * np.ones((1, 1)), 1 / 2 * np.ones((1, shape[1]))))
+                    col3 = np.hstack((np.zeros(shape), np.zeros((shape[0], 1)), np.zeros(shape)))
+
+                    self.sym_mask = np.vstack((col1, col2, col3))
+
+                self.sym_cell_shape = ((Nx + 1) // 2, (Ny + 1) // 2)
+
+        if x_mask is None:
+            x_mask = np.ones(self.sym_cell_shape)
+        if y_mask is None:
+            y_mask = np.ones(self.sym_cell_shape)
+        if rad_mask is None:
+            rad_mask = np.ones(self.sym_cell_shape)
+        if eps_mask is None:
+            eps_mask = np.ones(self.sym_cell_shape)
+
+        param_mask = np.array([x_mask, y_mask, rad_mask, eps_mask])
+
+        if param_mask.shape[1:] != self.sym_cell_shape:
+            raise ValueError("Parameter mask shape not equal to symmetry cell")
+
+        self.x_bounds = [[[0, 0], self.dist_bound][val] for val in np.ravel(param_mask[0])]
+        self.y_bounds = [[[0, 0], self.dist_bound][val] for val in np.ravel(param_mask[1])]
+        self.rad_bounds = [[[1, 1], self.rad_bound][val] for val in np.ravel(param_mask[2])]
+        self.eps_bounds = [[[1, 1], self.eps_bound][val] for val in np.ravel(param_mask[3])]
+
+        self.symmetry = symmetry
+
+    def set_base_bounds(self, dist, rad, eps):
+
+        self.dist_bound = dist
+        self.rad_bound = rad
+        self.eps_bound = eps
+
+    def _center(self, arrays):
+        Nx, Ny = self._supercell_size
+
+        return [np.roll(array, (np.int_(np.ceil(Nx / 2)), np.int_(np.ceil(Ny / 2))), axis=(0, 1)) for array in arrays]
+
+    def _uncenter(self, arrays):
+        Nx, Ny = self._supercell_size
+        return [np.roll(array, (-np.int_(np.ceil(Nx / 2)), -np.int_(np.ceil(Ny / 2))), axis=(0, 1)) for array in arrays]
+
+    def _apply_symmetry(self, dx, dy, eps, rad):
+
+        dx_, dy_, eps_, rad_ = self._center([dx, dy, eps, rad])
+
+        dx_masked = dx_ * self.sym_mask
+        dy_masked = dy_ * self.sym_mask
+        eps_masked = eps_ * self.sym_mask
+        rad_masked = rad_ * self.sym_mask
+        if self.symmetry == 'None' or self.symmetry is None:
+            return dx, dy, eps, rad
+
+        elif self.type == 'square':
+            if self.symmetry == 'x_mirror':
+                dx_ = dx_masked - np.flip(dx_masked, 0)
+                dy_ = dy_masked + np.flip(dy_masked, 0)
+                eps_ = eps_masked + np.flip(eps_masked, 0)
+                rad_ = rad_masked + np.flip(rad_masked, 0)
+            elif self.symmetry == 'y_mirror':
+                dx_ = dx_masked + np.flip(dx_masked, 1)
+                dy_ = dy_masked - np.flip(dy_masked, 1)
+                eps_ = eps_masked + np.flip(eps_masked, 1)
+                rad_ = rad_masked + np.flip(rad_masked, 1)
+            elif self.symmetry == 'Dihedral':
+                dx_ = dx_masked + np.flip(dx_masked, 1) - np.flip(dx_masked, 0) - np.flip(dy_masked, (1, 0))
+                dy_ = dy_masked - np.flip(dy_masked, 1) + np.flip(dy_masked, 0) - np.flip(dy_masked, (1, 0))
+                eps_ = eps_masked + np.flip(eps_masked, 1) + np.flip(dy_masked, 0) + np.flip(dy_masked, (1, 0))
+                rad_ = rad_masked + np.flip(rad_masked, 1) + np.flip(dy_masked, 0) + np.flip(dy_masked, (1, 0))
+            else:
+                raise ValueError("This symmetry not available for squares.")
+
+        dx, dy, eps, rad = self._uncenter([dx_, dy_, eps_, rad_])
+
+        return dx, dy, eps, rad
+
+    def get_bounds(self):
+        return self.x_bounds+self.y_bounds+self.rad_bounds+self.eps_bounds
+
+    def get_param_shape(self, ):
+        raise NotImplementedError
+
     def cavity(self, dx: Sequence[float] = None,
                dy: Sequence[float] = None,
                frads: Sequence[float] = None,
@@ -425,31 +569,75 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
         """
         Nx, Ny = self._supercell_size
 
-
         if dx is None:
-            dx = np.zeros((Nx, Ny))
-
+            dx = np.zeros(self.sym_cell_shape)
         if dy is None:
-            dy = np.zeros((Nx, Ny))
+            dy = np.zeros(self.sym_cell_shape)
         if frads is None:
-            frads = np.ones((Nx, Ny))
+            frads = np.ones(self.sym_cell_shape)
         if feps is None:
-            feps = np.ones((Nx, Ny))
+            feps = np.ones(self.sym_cell_shape)
+
+        dx, dy, frads, feps = self._apply_symmetry(dx, dy, frads, feps)
 
         cryst = legume.PhotCryst(self._lattice, eps_l=self.eps_l, eps_u=self.eps_u)
-
         cryst.add_layer(d=self.thickness, eps_b=self.eps_b)
 
         # Add holes with double mirror symmetry.
         for i in range(Nx):
             for j in range(Ny):
-                eps =self.hole_grid[i,j,0] * feps[i,j]
+                eps = self.hole_grid[i, j, 0] * feps[i, j]
                 rad = self.hole_grid[i, j, 1] * frads[i, j]
-                x_cent = self.pos_grid[0][i,j] + dx[i,j]
-                y_cent = self.pos_grid[1][i,j] + dy[i,j]
+                x_cent = self.pos_grid[0][i, j] + dx[i, j]
+                y_cent = self.pos_grid[1][i, j] + dy[i, j]
 
                 if rad == 0.0:
                     continue
                 else:
                     cryst.add_shape(legume.Circle(x_cent=x_cent, y_cent=y_cent, r=rad, eps=eps))
         return cryst
+
+    def cavity_p(self, params: Sequence[float]) -> legume.phc.phc:
+        """
+        Construct a photonic crystal cavity object of topology specified in constructor.
+        Parameter list compatible with Autograd and
+
+        @param params: flat np.array of parameters in the block form [dx, dy, frads, feps].
+
+        Each array flattened in row major order. (np.ravel)
+
+        @return: photonic crystal cavity object
+        """
+        Nx, Ny = self._supercell_size
+
+        param_length = self.sym_cell_shape[0] * self.sym_cell_shape[1]
+        dx = params[0:param_length].reshape(self.sym_cell_shape)
+        dy = params[param_length:2 * param_length].reshape(self.sym_cell_shape)
+        frads = params[param_length:3 * param_length].reshape(self.sym_cell_shape)
+        feps = params[3 * param_length:].reshape(self.sym_cell_shape)
+
+        dx, dy, frads, feps = self._apply_symmetry(dx, dy, frads, feps)
+
+        cryst = legume.PhotCryst(self._lattice, eps_l=self.eps_l, eps_u=self.eps_u)
+        cryst.add_layer(d=self.thickness, eps_b=self.eps_b)
+
+        for i in range(Nx):
+            for j in range(Ny):
+                eps = self.hole_grid[i, j, 0] * feps[i, j]
+                rad = self.hole_grid[i, j, 1] * frads[i, j]
+                x_cent = self.pos_grid[0][i, j] + dx[i, j]
+                y_cent = self.pos_grid[1][i, j] + dy[i, j]
+
+                if rad == 0.0:
+                    continue
+                else:
+                    cryst.add_shape(legume.Circle(x_cent=x_cent, y_cent=y_cent, r=rad, eps=eps))
+        return cryst
+
+    def get_start_parameters(self):
+        """
+        @return: Returns a list of appopriate shape for starting parameters
+        """
+        param_length = self.sym_cell_shape[0] * self.sym_cell_shape[1]
+
+        return np.array([0]*param_length + [0]*param_length + [1]*param_length + [1]*param_length)
