@@ -114,7 +114,14 @@ class Lattice(object):
 
     @staticmethod
     def _gauss_reduction(v1, v2):
+        """
+        Lenstra–Lenstra–Lovász lattice reduction
+        :param v1: Lattice Vector 1
+        :param v2: Lattice Vector 2
+        :return: a1, a2: Reduced Lattice Vectors
+        """
         # See https://kel.bz/post/lll/
+        a1,a2=v1,v2
         while True:
             n1 = bd.norm(v1)
             n2 = bd.norm(v2)
@@ -124,6 +131,10 @@ class Lattice(object):
             # We need 0.5 to round up so we use floor(0.5+x) as round.
             m = np.floor(0.5 + bd.dot(v1, v2) / bd.dot(v1, v1))
             if m == 0:
+                if bd.dot(a1, v2)**2+bd.dot(a2, v1)**2>bd.dot(a2, v2)**2+bd.dot(a1, v1)**2:
+                    # Maximizes projection onto original basis.
+
+                    v1,v2 = v2,v1
                 return v1, v2
             v2 = v2 - m * v1  # reduction step
 
