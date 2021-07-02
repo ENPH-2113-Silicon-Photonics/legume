@@ -5,14 +5,16 @@ import numpy as np
 from PIL import Image, ImagePalette
 import scipy as sp
 import legume
-
+from operator import itemgetter
+import itertools
 
 def lowpass_downsample(bitmap, factor):
     """
+    Downsample a bitmap via DFT truncation.
 
-    :param bitmap: Bitmap np array for factor
-    :param factor: will cut
-    :return:
+    :param bitmap: Input bitmap (np array)
+    :param factor: Will downsample array by this factor.
+    :return: Downsampeld bitmap array.
     """
     double_factor = factor * 2
 
@@ -65,6 +67,20 @@ def import_eps_image(img_path, eps_map, tol=5):
 
 
 def find_band_gaps(gme, order, sample_rate=10, band_tol=0.1, trim_lc=False, lc_trim=0, numeig=20):
+    """
+    Find band gaps from a guided mode expansion.
+    :param gme: guided mode expansion (this function will overwrite any results.)
+    :param order: order of modes to calculate. (even TE, odd TM)
+    :param sample_rate: Governs number of k points sampled
+    :param band_tol: tolerance of what frequency difference counts as a band gap.
+    :param trim_lc: If True removes points in light cone from consideration.
+    :param lc_trim: Tolerance of light cone trim.
+    :param numeig: Number of bands in frequency to calculate starting from zero.
+
+    :return: bands_gaps: list of lists in form [top of gap, bottom of gap, middle of gap],
+             k_air: k points of top of gap. (Bottom of air band)
+             k_di: k point of bottom of gap. (Top of dielectric band)
+    """
     lattice = gme.phc.lattice
 
     bz = lattice.get_irreducible_brioullin_zone_vertices()
@@ -106,75 +122,93 @@ def find_band_gaps(gme, order, sample_rate=10, band_tol=0.1, trim_lc=False, lc_t
 
     return band_gaps, k_air, k_di
 
+def fold_K(k, supercell_size):
+    """
+    Fold kpoints into a supercell_size Brillouin Zone.
 
-def unfold_bands(super_gme, prim_gme, branch_start=-np.pi):
-    # Collect g-vectors of primitive and supercell expansions.
-    prim_gvecs = prim_gme.gvec.reshape(2, prim_gme.n1g, prim_gme.n2g)
+    :param k: array of k points to fold in 1 dimension.
+    :param supercell_size: number of primitive cells in supercell along dimension of interest.
+    :return: folded array of k points.
+    """
+    a= np.pi / supercell_size
+    fold=np.floor(k/a)
+    s=np.mod(fold,2)
+    new_k = (-1)**s *np.mod(k,a)+s*a
+    return new_k
+
+
+
+def unfold_bands(super_gme, supercell_size, branch_start=-np.pi):
+    """
+    Unfold bands of a guided mode expansion based on spectral density calculations.
+
+    :param super_gme: Guided mode expansion object of super cell with eigenvectors calculated.
+                      Must be rectangular tiling of primitive cells.
+
+    :param supercell_size: Number of tiles along x and y axis.
+
+    :param branch_start: range of unfolding. Range: [branch_start, 2pi+branch_start), default range [-pi, pi).
+    :return: Dispersion relation of unfolded band structure of super cell calculation and normalized spectral density for each eigenvector.
+             Note k returned in units of 1/a, a being the primitive lattice constant.
+
+    TODO: This funciton can be generalized to plane wave expansion.
+    """
+    # Collect g-vectors of primitive and supercell_size expansions.
 
     gvecs = super_gme.gvec.reshape(2, super_gme.n1g, super_gme.n2g)
-
-    # TODO: We should try generating this other_mask in more analytic way.
-    #   IE. Mask is periodic, we just need to find starting point. (0,0)
-    #       New input would be supercell size (periodicity) and super_gme, we don't need prim_gme.
+    prim_gvecs = super_gme.gvec.reshape(2, super_gme.n1g, super_gme.n2g) * np.array(supercell_size).reshape(2,1,1)
 
     mask = np.logical_and(np.isin(gvecs[0], prim_gvecs[0]), np.isin(gvecs[1], prim_gvecs[1]))
 
     # Determine periodicity of the crystal.
 
     lattice = super_gme.phc.lattice
-    base_lattice = prim_gme.phc.lattice
 
     b1 = lattice.b1
     b2 = lattice.b2
-    prim_b1 = base_lattice.b1
-    prim_b2 = base_lattice.b2
 
-    Nx = np.int_(np.rint(prim_b1 / b1))[0]
-    Ny = np.int_(np.rint(prim_b2 / b2))[1]
+    if b1[1]==0 and b2[0]==0:
+        N1, N2 = supercell_size
+    elif b1[0] == 0 and b2[1] == 0:
+        N2, N1 = supercell_size
+    else:
+        raise(ValueError("Supercell is not rectangular."))
 
     # Pad the other_mask so that when we roll the other_mask we don't create artifacts bleed array.
-    # TODO If we generate other_mask from periodicity can we simply create shifted-period other_mask.
+    # TODO We lose prim vectors on sides.
 
-    pad_mask = np.pad(mask, ((Nx, 0), (Ny, 0)))
+    pad_mask = np.pad(mask, ((N1-1, 0), (N2-1, 0)))
 
-    dispersion = [[], [], []]
-    probabilities = []
+    unfolded_kpoints = np.array([np.empty(super_gme.freqs.shape),np.empty(super_gme.freqs.shape)])
+    probabilities = np.empty((super_gme.freqs.shape[0], super_gme.freqs.shape[1], N1, N2))
+
 
     for k in range(len(super_gme.kpoints.transpose())):
         for w in range(len(super_gme.eigvecs[k].transpose())):
-            probability = []
-            for i in range(Nx):
-                probability.append([])
-                for j in range(Ny):
-                    trans_vec = (i, j)
 
-                    # Roll padded other_mask and truncate to shape of eigen vector.
 
-                    trans_mask = np.roll(pad_mask, trans_vec, axis=(0, 1))[Nx:, Ny:]
-
-                    eig = super_gme.eigvecs[k].transpose()[w].reshape((super_gme.n1g, super_gme.n2g))
-                    prob = np.sum(np.square(np.abs(eig[trans_mask])))
-
-                    probability[-1].append(prob)
-
-            probability = np.asarray(probability)
+            eig = super_gme.eigvecs[k].transpose()[w].reshape((super_gme.n1g, super_gme.n2g))
+            # Roll padded other_mask and truncate to shape of eigen vector.\
+            probability = np.empty((N1,N2))
+            for i,j in itertools.product(range(N1),range(N2)): probability[i,j] = \
+                np.sum(np.square(np.abs(eig[np.roll(pad_mask, (i,j), axis=(0, 1))[N1-1:, N2-1:]])))
 
             # Normalize probability
             probability = probability / np.sum(probability)
 
             args = np.argwhere(probability == probability.max())[0]
+
             trans = (args[0]) * b1 + (args[1]) * b2
 
             new_k = super_gme.kpoints.T[k] + trans
             # Shift K to appropriate branch of mod function.
             new_k = np.mod(new_k - branch_start, 2 * np.pi) + branch_start
 
-            dispersion[0].append(super_gme.freqs[k][w])
-            dispersion[1].append(new_k[0])
-            dispersion[2].append([k, w])
-            probabilities.append(probability)
+            unfolded_kpoints[0][k,w] = new_k[0]
+            unfolded_kpoints[1][k,w] = new_k[1]
+            probabilities[k,w,:,:] = probability
 
-    return np.array(dispersion), np.array(probabilities)
+    return unfolded_kpoints, probabilities
 
 
 def fixed_point_cluster(mean, diff, N, kernel='gaussian', u=None, reflect=False):
@@ -208,3 +242,86 @@ def fixed_point_cluster(mean, diff, N, kernel='gaussian', u=None, reflect=False)
         clustered_array = np.concatenate((-clustered_array, clustered_array))
 
     return clustered_array
+
+def isolate_bands(kpoints, freqs):
+    """
+    Isolate bands from band structure.
+
+    :param k: array of k points
+    :param freqs: list of lists of frequencies corresponding to k points. Each entry corresponds to kpoints
+    :return: List of lists each entry contains array of freqs and array of k for bands.
+    """
+
+
+    args=np.argsort(kpoints)
+
+    kpoints_sorted, freqs_sorted= kpoints[args], freqs[args][:]
+
+    low_arg_bands=[]
+    arg_bands=[]
+    high_arg_bands=[]
+
+    bands = []
+    low_bands = []
+    high_bands = []
+    base_ind=0
+    num_bands = freqs_sorted.shape[1]
+
+    for find, freq in enumerate(freqs_sorted[0]):
+        bands.append([[kpoints_sorted[0]],[freq]])
+        arg_bands.append([[args[0]],[find]])
+
+    for kind, k in enumerate(kpoints_sorted[1:]):
+        k_freqs = freqs_sorted[kind + 1]
+
+        error_cont = 0
+        error_plus = 0
+        error_neg = 0
+
+        for bind, band in enumerate(bands[:]):
+            error_cont += (k_freqs[bind]-band[1][-1])**2
+
+        for bind, band in enumerate(bands[1:]):
+            error_plus += (k_freqs[:-1][bind]-band[1][-1])**2
+
+        for bind, band in enumerate(bands[:-1]):
+            error_neg += (k_freqs[1:][bind]-band[1][-1])**2
+
+        if error_plus == min([error_cont,error_plus, error_neg]):
+            low_bands.insert(0, bands[0])
+            low_arg_bands.insert(0, arg_bands[0])
+
+            bands = bands[1:]
+            bands.append([[], []])
+            arg_bands = arg_bands[1:]
+            arg_bands.append([[], []])
+
+        elif error_neg == min([error_cont,error_plus, error_neg]):
+            high_bands.append(bands[-1])
+            high_arg_bands.append(arg_bands[-1])
+
+            bands = bands[:-1]
+            bands.insert(0, [[], []])
+            arg_bands = arg_bands[:-1]
+            arg_bands.insert(0, [[], []])
+
+        for find, freq in enumerate(k_freqs):
+            bands[find][1].append(freq)
+            bands[find][0].append(k)
+            arg_bands[find][1].append(find)
+            arg_bands[find][0].append(args[kind+1])
+
+    final_bands=low_bands+bands+high_bands
+    final_bands = [np.array(band) for band in final_bands]
+
+    final_arg_bands=low_arg_bands+arg_bands+high_arg_bands
+    final_arg_bands = [np.array(band) for band in final_arg_bands]
+
+
+    return final_bands, final_arg_bands
+
+
+
+
+
+
