@@ -3,7 +3,8 @@
 import legume
 from typing import Sequence, Literal, Tuple
 import numpy as np
-
+import matplotlib.pyplot as plt
+import itertools
 
 class CrystalTopology:
 
@@ -29,7 +30,6 @@ class CrystalTopology:
         raise (NotImplementedError("Method must be implemented by subclass"))
 
 
-# %%
 
 # The idea is to create a class that automatically defines cavity geometries for you.
 # Starting with the only changes to the cavity being shifts.
@@ -51,7 +51,7 @@ class PhotonicCrystalCavity(CrystalTopology):
         Provides constructor for these topologies allowing for perturbations of radius and placement of
         individual holes in the lattice. Perturbations maintain double mirror symmetry along the X and Y axis.
 
-        @param crystal:  A string that's either 'H' or 'L', depending on what the desired cavity type is
+        @param crystal:  A string that's either 'H' or 'L', depending on what the desired cavity lattice_type is
 
 
         @param supercell_size: The number of periods of the unperturbed lattice in the X and Y directions.
@@ -62,13 +62,13 @@ class PhotonicCrystalCavity(CrystalTopology):
 
         @param eps: The material permittivity of the material (holes are eps=1)
 
-        @param n: For 'L' type crystals represents the number of holes removed along the X axis.
-                  For 'H' type crystals represents the number of hexagonal rings of holes removed around origin.
+        @param n: For 'L' lattice_type crystals represents the number of holes removed along the X axis.
+                  For 'H' lattice_type crystals represents the number of hexagonal rings of holes removed around origin.
 
-        @param m: For 'L' for L type crystal represents the number of holes to replace the 'n' removed holes.
+        @param m: For 'L' for L lattice_type crystal represents the number of holes to replace the 'n' removed holes.
                   m should not be too much greater then n or holes will overlap.
 
-                  For 'H' type crystal represents nothing. Defaults to None
+                  For 'H' lattice_type crystal represents nothing. Defaults to None
         """
 
         if crystal == 'L' and m is None:
@@ -139,7 +139,7 @@ class PhotonicCrystalCavity(CrystalTopology):
                 return xnew, ynew
 
             else:
-                print("invalid crystal type")
+                print("invalid crystal lattice_type")
                 return xp, yp
 
         self.xp, self.yp = remove_holes(xp, yp, Nx, Ny, ctype, m, n)
@@ -311,8 +311,8 @@ class NanoBeamCavity(CrystalTopology):
 
 class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
-    def __init__(self, type: Literal['hexagonal', 'square'], supercell_size: Tuple[int, int], thickness: float,
-                 radius: float, eps_b: float, eps_circ, eps_l: float = 1, eps_u: float = 1):
+    def __init__(self, type: Literal['hexagonal', 'square', 'rectangular'], supercell_size: Tuple[int, int], thickness: float,
+                 radius: float, eps_b: float, eps_circ, eps_l: float = 1, eps_u: float = 1, h_ratio: float=1, v_ratio: float=1):
         super().__init__()
         self.eps_b = eps_b
         self.eps_circ = eps_circ
@@ -330,6 +330,9 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
         self.eps_l = eps_l
         self.eps_u = eps_u
+
+        self.h_ratio = h_ratio
+        self.v_ratio = h_ratio
 
         Nx, Ny = self._supercell_size
 
@@ -353,9 +356,15 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
             lattice = legume.Lattice([supercell_size[0], 0], [0, supercell_size[1]])
             self._lattice = lattice
+        elif self.type == 'rectangular':
+            self.xgrid, self.ygrid = np.meshgrid(np.array(range(Nx)*self.h_ratio, dtype=np.float64),
+                                                 np.array(range(Ny)*self.v_ratio, dtype=np.float64))
+            self.pos_grid = (self.xgrid.T, self.ygrid.T)
 
+            lattice = legume.Lattice([supercell_size[0]*self.h_ratio, 0], [0, supercell_size[1]*self.v_ratio])
+            self._lattice = lattice
         else:
-            raise ValueError("Type must be hexagonal or square")
+            raise ValueError("Type must be hexagonal, square or rectangular")
 
         self.hole_grid = np.tile(np.expand_dims(np.array([eps_circ, radius]), axis=0), (Nx, Ny, 1))
 
@@ -372,7 +381,7 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
         hole_list = self.hole_grid.tolist()
 
         if self.type == 'hexagonal' and coord[1] < 0:
-            coord = (int(self._supercell_size[1] / 2 + coord[0]) % self._supercell_size[0], coord[1])
+            coord =self.hex_coord_convert(coord)
         if eps is None:
             eps = hole_list[coord[0]][coord[1]][0]
 
@@ -426,7 +435,7 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
     def hex_coord_convert(self, coord):
         if self.type == 'hexagonal' and coord[1] < 0:
-            return (int(coord[0]-self._supercell_size[1] / 2) % self._supercell_size[0], coord[1])
+            return (int(coord[0]-self._supercell_size[1] / 2) % self._supercell_size[0], coord[1] % self._supercell_size[1])
         else:
             return coord
 
@@ -638,6 +647,215 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
                     continue
                 else:
                     cryst.add_shape(legume.Circle(x_cent=x_cent, y_cent=y_cent, r=rad, eps=eps))
+        return cryst
+
+    def get_start_parameters(self):
+        """
+        @return: Returns a list of appopriate shape for starting parameters
+        """
+        param_length = self.sym_cell_shape[0] * self.sym_cell_shape[1]
+
+        return np.array([0]*param_length + [0]*param_length + [1]*param_length + [1]*param_length)
+
+    def display_coordinate_grid(self, use_neg=True, fig=None,axis=None):
+        """
+        Displays the locations of shapes in the lattice with index coordinates overlaid.
+
+        :param use_neg: If true displays negative coordinates close to 0.
+                            Note that modular relation is broken for a hexagonal lattice.
+                            That is (0,-1) == (-Ny/2 % Nx,Nx-1) != (0, Nx-1).
+
+                            This accounts for the fact that we have a hex lattice embedded in a
+                            rectangular superlattice.
+
+                        If false displays true coordinates.
+
+                        Both coordinate systems can be used to reference holes.
+        :return:
+        """
+        spatial_period = self._lattice.a1 + self._lattice.a2
+        ax, ay = spatial_period
+
+        if fig is None and axis is None:
+            fig, axis = plt.subplots(figsize=self._supercell_size)
+        elif fig is None or axis is None:
+            raise ValueError("Must have both or neither of fig and axis be None.")
+
+        axis.scatter(np.mod(self.pos_grid[0] + ax / 2, ax) - ax / 2,
+                     np.mod(self.pos_grid[1] + ay / 2, ay) - ay / 2,
+                     s=500,
+                     cmap="Greys")
+
+        axis.arrow(0, 0, self.pos_grid[0][1, 0], self.pos_grid[1][1, 0], width=0.1, alpha=1, color='red',
+                   length_includes_head=True)
+        axis.arrow(0, 0, self.pos_grid[0][0, 1], self.pos_grid[1][0, 1], width=0.1, alpha=1, color='red',
+                   length_includes_head=True)
+        axis.scatter(0, 0, s=100, c='red')
+
+        if use_neg:
+            iterable = itertools.product(range(-self._supercell_size[0] // 2, self._supercell_size[0] // 2),
+                                         range(-self._supercell_size[1] // 2, self._supercell_size[1] // 2))
+        else:
+            iterable = itertools.product(range(self._supercell_size[0]), range(self._supercell_size[1]))
+
+        for coord in iterable:
+            if self.type == 'hexagonal':
+                i_, j_ = self.hex_coord_convert(coord)
+            else:
+                i_, j_ = coord
+            axis.text(np.mod(self.pos_grid[0][i_, j_] + ax / 2, ax) - ax / 2 - 0.5,
+                      np.mod(self.pos_grid[1][i_, j_] + ay / 2 + 0.2, ay) - ay / 2, "(%d,%d)" % coord)
+
+        return fig, axis
+
+class GeneralizedPHCTopologyBuilder(CrystalTopology):
+
+    def __init__(self, lattice_type: Literal['hexagonal', 'square', 'custom'], supercell_size: Tuple[int, int], shape: ShapeBuilder, shape_parameters: dict, thickness: float,
+                 eps_b: float, eps_l: float = 1, eps_u: float = 1, custom_lattice_vectors = None):
+        super().__init__()
+        self.eps_b = eps_b
+        self.thickness = thickness
+
+        self.shape = shape
+        self.shape.check_parameters()
+
+        if self.shape_parameters.keys != shape.get_parameters():
+            raise ValueError("For this shape, shape parameter dictionary must include: " + str(shape.get_parameters()))
+
+        self.type = lattice_type.lower()
+        self._supercell_size = supercell_size
+
+        eps_ratio = self.eps_circ / self.eps_b
+
+        self.eps_bound = [min(eps_ratio, 1 / eps_ratio), 1.5]
+
+        self.eps_l = eps_l
+        self.eps_u = eps_u
+
+        Nx, Ny = self._supercell_size
+
+        ix, iy = np.meshgrid(np.array(range(Nx), dtype=np.int_), np.array(range(Ny), dtype=np.int_))
+        self.init_grid = (ix.T, iy.T)
+
+        if self.type == 'hexagonal':
+            self.lattice_vectors = np.array([[1,0],[1/2,np.sqrt(3)/2]])
+
+        elif self.type == 'square':
+            self.lattice_vectors = np.array([[1, 0], [0, 1]])
+        elif self.type == 'custom':
+            if custom_lattice_vectors is not None:
+                self.lattice_vectors = custom_lattice_vectors
+            else:
+                raise ValueError("For cutom type custom_lattice_vectors must be defined.")
+        else:
+            raise ValueError("Type must be custom, square or hexagonal")
+
+        self.pos_grid = np.array(ix*self.lattice_vectors[0] + iy*self.lattice_vectors[1])
+        
+        lattice = legume.Lattice([supercell_size[0], 0], [0, (supercell_size[1]) * np.sqrt(3) / 2])
+
+        self._lattice = lattice
+
+
+        self.shape_grid = np.tile(np.expand_dims(np.array([Base_Parameters]), axis=0), (Nx, Ny))
+
+        self.sym_cell_shape = supercell_size
+
+    def update_shape(self, coord, **shape_parameters):
+        for param in shape_parameters:
+
+            if self.type == 'hexagonal' and coord[1] < 0:
+                coord = (int(self._supercell_size[1] / 2 + coord[0]) % self._supercell_size[0], coord[1])
+
+            self.shape_grid[param][coord[0]][coord[1]] == shape_parameters[param]
+
+    def update_row_col(self, shape_parameters, rows=None, cols=None):
+        if cols is not None:
+            if self.type == 'hexagonal':
+                raise ValueError("Cutting waveguides along columns of hexagonal crystal is not supported.")
+
+            if type(cols) is int:
+                col = np.array(self.init_grid)[:, cols, :]
+
+                for coord in col.T:
+                    self.update_shape(coord, shape_parameters)
+            else:
+                for col in cols:
+                    col = np.array(self.init_grid)[:, col, :]
+
+                    for coord in col.T:
+                        self.update_shape(coord, shape_parameters)
+
+        if rows is not None:
+            if type(rows) is int:
+                row = np.array(self.init_grid)[:, :, rows]
+
+                for coord in row.T:
+                    self.update_shape(coord, shape_parameters)
+            else:
+                for row in rows:
+                    row = np.array(self.init_grid)[:, :, row]
+
+                    for coord in row.T:
+                        self.update_shape(coord, shape_parameters)
+
+    def introduce_point_defect(self):
+        raise NotImplementedError("This feature is not implemented")
+
+    def get_base_crystal(self) -> legume.phc.phc:
+
+        lattice = legume.Lattice(self.type)
+        cryst = legume.PhotCryst(lattice, eps_l=self.eps_l, eps_u=self.eps_u)
+        cryst.add_layer(d=self.thickness, eps_b=self.eps_b)
+        self.shape.place_shape(cryst, **Base_Parameters)
+        return cryst
+
+    def hex_coord_convert(self, coord):
+        if self.type == 'hexagonal' and coord[1] < 0:
+            return (int(coord[0]-self._supercell_size[1] / 2) % self._supercell_size[0], coord[1])
+        else:
+            return coord
+
+
+    def get_param_shape(self, ):
+        raise NotImplementedError
+
+    def cavity(self, params: Sequence[float]) -> legume.phc.phc:
+        """
+        Construct a photonic crystal cavity object of topology specified in constructor.
+        Parameter list compatible with Autograd and
+
+        @param params: flat np.array of parameters in the block form [dx, dy, frads, feps].
+
+        Each array flattened in row major order. (np.ravel)
+
+        @return: photonic crystal cavity object
+        """
+        Nx, Ny = self._supercell_size
+
+        param_length = self.sym_cell_shape[0] * self.sym_cell_shape[1]
+
+        difference_grid_ = dict()
+        for i, parameter in enumerate(self.shape_parameters):
+            difference_grid_.update({parameter: params[i*param_length:(i+1)*param_length].reshape(self.sym_cell_shape)})
+
+
+        difference_grid = difference_grid_
+
+        cryst = legume.PhotCryst(self._lattice, eps_l=self.eps_l, eps_u=self.eps_u)
+        cryst.add_layer(d=self.thickness, eps_b=self.eps_b)
+
+        passed_parameters = dict()
+        for i, parameter in enumerate(self.shape_parameters):
+            passed_parameters.update({parameter: self.shape.apply_perturbation(name, value, difference)})
+
+        for i in range(Nx):
+            for j in range(Ny):
+                self.shape.add_shape(cryst, **passed_parameters)
+
+
+
+
         return cryst
 
     def get_start_parameters(self):

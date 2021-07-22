@@ -548,9 +548,9 @@ class GuidedModeExp(object):
         often be the case, specifically when there is in-plane inversion
         symmetry in the PhC elementary cell
         """
-        # if bd.amax(bd.abs(bd.imag(mat))) < 1e-10*bd.amax(bd.abs(bd.real(mat))):
-        #     mat = bd.real(mat)
-        #     print(mat.dtype)
+        if bd.amax(bd.abs(bd.imag(mat))) < 1e-10*bd.amax(bd.abs(bd.real(mat))):
+            mat = bd.real(mat)
+            print(mat.dtype)
 
         """
         Make the matrix Hermitian (note that only upper part of the blocks, i.e.
