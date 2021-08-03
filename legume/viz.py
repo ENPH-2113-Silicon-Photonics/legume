@@ -146,7 +146,7 @@ def _plot_circle(x, y, r, ax=None, color='b', lw=1, npts=51):
     return pl
 
 def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
-             cbar=False, cmap='Greys'):
+             cbar=False, cmap='Greys', periods=None):
     """Plot the in-plane permittivity distribution of a Layer instance
 
     Parameters
@@ -169,8 +169,11 @@ def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
     cmap : bool, optional
         Matplotlib colormap to use for plot
         Default is 'Greys'.
+    periods : float, optional
+        A number or a list of two numbers that defines how many periods
+        in the `x`- and `y`-directions are included.
     """
-    (xgrid, ygrid) = layer.lattice.xy_grid(Nx=Nx, Ny=Ny)
+    (xgrid, ygrid) = layer.lattice.xy_grid(Nx=Nx, Ny=Ny, periods=periods)
     [xmesh, ymesh] = np.meshgrid(xgrid, ygrid)
 
     eps_r = layer.get_eps((xmesh, ymesh))

@@ -159,10 +159,7 @@ class Lattice(object):
             Two arrays defining a linear grid in `x` and `y`.
         """
         if periods == None:
-            if self.type in ['square', 'rectangular', 'custom_square', 'custom_rectangular']:
-                periods = [1, 1]
-            else:
-                periods = [2, 2]
+            periods = [1, 1]
         elif np.array(periods).shape == 1:
             periods = periods[0] * np.ones((2,))
 
