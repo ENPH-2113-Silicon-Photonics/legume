@@ -762,15 +762,14 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
         shape_grid = dict()
         for param in self.shape_parameters:
-            shape_grid[param] =np.ones((self.Nx, self.Ny, 1))*np.array(self.shape.defaults[param])
+            shape_grid[param] = (np.ones((self.Nx, self.Ny, 1))*np.array(self.shape.defaults[param])).tolist()
 
         self.shape_grid = shape_grid
         self.sym_cell_shape = supercell_size
 
     def update_shape(self, coord, **shape_parameters):
         for param in shape_parameters:
-            self.shape_grid[param][coord[0],coord[1]] = shape_parameters[param]
-
+            self.shape_grid[param][coord[0]][coord[1]] = shape_parameters[param]
 
     def update_row_col(self, rows=None, cols=None, **shape_parameters):
         if cols is not None:
@@ -874,6 +873,4 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
         shape_bounds=[]
         for param in self.shape_parameters:
             shape_bounds = shape_bounds + bounds_dict[param]*param_length
-
-
         return basic_bounds + shape_bounds
