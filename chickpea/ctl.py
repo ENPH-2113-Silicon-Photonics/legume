@@ -762,7 +762,7 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
         shape_grid = dict()
         for param in self.shape_parameters:
-            shape_grid[param] = (np.ones((self.Nx, self.Ny, 1))*np.array(self.shape.defaults[param])).tolist()
+            shape_grid[param] = [[self.shape.defaults[param]]*self.Ny for i in range(self.Nx)]
 
         self.shape_grid = shape_grid
         self.sym_cell_shape = supercell_size
