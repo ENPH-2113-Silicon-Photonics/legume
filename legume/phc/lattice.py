@@ -129,8 +129,8 @@ class Lattice(object):
                 v1, v2 = v2, v1  # swap step
 
             # We need 0.5 to round up so we use floor(0.5+x) as round.
-            m = np.floor(0.5 + bd.dot(v1, v2) / bd.dot(v1, v1))
-            if m == 0:
+            m = bd.floor(0.5 + bd.dot(v1, v2) / bd.dot(v1, v1))
+            if m <= 0:
                 if bd.dot(a1, v2)**2+bd.dot(a2, v1)**2>bd.dot(a2, v2)**2+bd.dot(a1, v1)**2:
                     # Maximizes projection onto original basis.
 

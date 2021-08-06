@@ -746,6 +746,7 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
                 raise ValueError("For cutom type custom_lattice_vectors must be defined.")
         else:
             raise ValueError("Type must be custom, square or hexagonal")
+        lattice = legume.Lattice(self.lattice_vectors[0]*supercell_size[0], self.lattice_vectors[1]*supercell_size[1], reduce_lattice=False)
 
         ix, iy = np.meshgrid(np.array(range(self.Nx), dtype=np.int_), np.array(range(self.Ny), dtype=np.int_))
 
@@ -756,7 +757,6 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
         self.pos_grid = np.array(ix*self.lattice_vectors[0] + iy*self.lattice_vectors[1])
 
-        lattice = legume.Lattice(self.lattice_vectors[0]*supercell_size[0], self.lattice_vectors[1]*supercell_size[1])
 
         self._lattice = lattice
 
@@ -801,7 +801,7 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
     def get_base_crystal(self) -> legume.phc.phc:
 
-        lattice = legume.Lattice(self.type)
+        lattice = legume.Lattice(self.lattice_vectors[0], self.lattice_vectors[1])
         cryst = legume.PhotCryst(lattice, eps_l=self.eps_l, eps_u=self.eps_u)
         cryst.add_layer(d=self.thickness, eps_b=self.eps_b)
         self.shape.place_shape(cryst, eps=self.eps_shape, x=0, y=0)

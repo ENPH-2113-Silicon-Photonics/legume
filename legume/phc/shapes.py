@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.path as mpltPath
-
+import matplotlib as mpl
 from legume.backend import backend as bd
 
 class Shape(object):
@@ -58,6 +58,19 @@ class Shape(object):
         raise NotImplementedError("is_inside() needs to be implemented by"
             "Shape subclasses")
 
+    def return_patch(self, eps_cmap: mpl.colors.Colormap, offset=(0,0)):
+        """Return matplotlib patch representing the shape
+
+        Parameters
+        ----------
+        eps_cmap : mpl.colors.Colormap mapping permitivity to color
+        offset : coordinates of translation on shape.
+        """
+
+        raise NotImplementedError("plot_shape() needs to be implemented by"
+            "Shape subclasses")
+
+
 class Circle(Shape):
     """Circle shape
     """
@@ -98,6 +111,17 @@ class Circle(Shape):
     def is_inside(self, x, y):
         return (np.square(x - self.x_cent) + np.square(y - self.y_cent)
                             <= np.square(self.r))
+
+    def return_patch(self, eps_cmap: mpl.colors.Colormap, offset=(0,0)):
+        """Return matplotlib patch representing the shape
+
+        Parameters
+        ----------
+        eps_cmap : mpl.colors.Colormap mapping permitivity to color
+        offset : coordinates of translation on shape.
+        """
+        return mpl.patches.circle((self.x_cent + offset[0], self.y_cent + offset[1]), self.r, facecolor=eps_cmap(self.eps))
+
 
 class Poly(Shape):
     """Polygon shape
@@ -227,6 +251,18 @@ class Poly(Shape):
         self.y_edges = new_coords[1, :] + com_y
 
         return self
+
+    def return_patch(self, eps_cmap: mpl.colors.Colormap, offset=(0,0)):
+        """Return matplotlib patch representing the shape
+
+        Parameters
+        ----------
+        eps_cmap : mpl.colors.Colormap mapping permitivity to color
+        offset : coordinates of translation on shape.
+        """
+        vert = np.vstack((np.array(self.x_edges)+offset[0], np.array(self.y_edges)+offset[1]))
+
+        return mpl.patches.Polygon(vert.T, facecolor=eps_cmap(self.eps))
 
 class Square(Poly):
     """Square shape

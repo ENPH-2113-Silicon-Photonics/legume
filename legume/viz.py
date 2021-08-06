@@ -4,7 +4,7 @@ import numpy as np
 from .gme import GuidedModeExp
 from .phc import PhotCryst, Circle
 from .pwe import PlaneWaveExp
-
+import itertools
 
 def bands(
     gme, 
@@ -123,9 +123,9 @@ def _plot_eps(eps_r, clim=None, ax=None, extent=None, cmap='Greys',
         im.set_clim(vmin=clim[0], vmax=clim[1])
 
     if cbar:
-        # cax = ax.figure.add_axes([ax.get_position().x1+0.01,
-        #     ax.get_position().y0, 0.02, ax.get_position().height])
-        # plt.colorbar(im, cax=cax) 
+        cax = ax.figure.add_axes([ax.get_position().x1+0.01,
+            ax.get_position().y0, 0.02, ax.get_position().height])
+        plt.colorbar(im, cax=cax)
         if cax is not None:
             plt.colorbar(im, ax=ax, cax=cax)
         else:
@@ -180,6 +180,71 @@ def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
     extent = [xgrid[0], xgrid[-1], ygrid[0], ygrid[-1]]
 
     _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap)
+
+def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys',
+               extents=None, periods = None, align_to_lattice_vectors=False):
+
+    if ax is None:
+        fig, ax = plt.subplots(1, constrained_layout=False)
+    else:
+        fig=ax.figure
+    a1 = layer.lattice.a1
+    a2 = layer.lattice.a2
+
+    if extents == None:
+        points = np.array([[0,0], a1,a1+a2,a2]).T
+
+        extents = min(points[0]), max(points[0]), min(points[1]), max(points[1])
+
+        diff_x = (extents[1]-extents[0])
+        diff_y = (extents[3]-extents[2])
+
+        extents = extents[0]-diff_x/2, extents[1]-diff_x/2, extents[2]-diff_y/2, extents[3]-diff_y/2
+
+    xmin, xmax, ymin, ymax = extents
+
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    norm = mpl.colors.Normalize()
+
+    eps_list = [layer.eps_b]
+
+    for shape in layer.shapes:
+        eps_list.append(shape.eps)
+
+    norm.autoscale(np.array(eps_list))
+    colors = plt.get_cmap(cmap)
+    if cbar:
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=ax)
+
+    eps_cmap = lambda eps: colors(norm(eps))
+
+    if periods == None:
+        max_point = np.linalg.norm(np.array([max(np.abs((xmin,xmax))),max(np.abs((ymin,ymax)))]))
+        periods = np.int_(max_point/np.linalg.norm(a1)), np.int_(max_point/np.linalg.norm(a2))
+
+    xyo = [n1 * a1 + n2 * a2 for n1, n2 in
+           itertools.product(range(-periods[0], periods[0] + 1), range(-periods[1], periods[1] + 1))]
+
+    for shape in layer.shapes:
+
+        # Incorporating periodicity
+        # This can be made significantly faster by using matplotlib.collections and offsets.
+        # However collections display artists in pixel coordinates so transformations must be applied to correct.
+        # Naive transformations fail if figure is further manipulates.
+
+        for offset in xyo:
+            patch = shape.return_patch(eps_cmap, offset)
+            ax.add_patch(patch)
+
+    ax.set_facecolor(eps_cmap(layer.eps_b))
+
+    return fig, ax
+
+
+
+
+
 
 def eps_xz(phc, y=0, Nx=100, Nz=50, ax=None, clim=None,
              cbar=False, cmap='Greys', cax=None, plot=True):
