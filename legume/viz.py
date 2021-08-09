@@ -6,20 +6,21 @@ from .phc import PhotCryst, Circle
 from .pwe import PlaneWaveExp
 import itertools
 
+
 def bands(
-    gme, 
-    Q=False, 
-    Q_clip=1e10, 
-    cone=True, 
-    conecolor='#eeeeee', 
-    ax=None,
-    figsize=(4,5), 
-    Q_cmap='viridis', 
-    markersize=6, 
-    markeredgecolor='w', 
-    markeredgewidth=1.5,
-    trim_light_cone = False,
-    lc_trim = 0,
+        gme,
+        Q=False,
+        Q_clip=1e10,
+        cone=True,
+        conecolor='#eeeeee',
+        ax=None,
+        figsize=(4, 5),
+        Q_cmap='viridis',
+        markersize=6,
+        markeredgecolor='w',
+        markeredgewidth=1.5,
+        trim_light_cone=False,
+        lc_trim=0,
 ):
     """Plot photonic band structure from a GME simulation
 
@@ -62,20 +63,20 @@ def bands(
         Axis object for the plot.
     """
 
-    if np.all(gme.kpoints[0,:]==0) and not np.all(gme.kpoints[1,:]==0) \
-        or np.all(gme.kpoints[1,:]==0) and not np.all(gme.kpoints[0,:]==0):
-        X0 = np.sqrt(np.square(gme.kpoints[0,:]) + 
-                np.square(gme.kpoints[1,:])) / 2 / np.pi
+    if np.all(gme.kpoints[0, :] == 0) and not np.all(gme.kpoints[1, :] == 0) \
+            or np.all(gme.kpoints[1, :] == 0) and not np.all(gme.kpoints[0, :] == 0):
+        X0 = np.sqrt(np.square(gme.kpoints[0, :]) +
+                     np.square(gme.kpoints[1, :])) / 2 / np.pi
     else:
         X0 = np.arange(len(gme.kpoints[0, :]))
 
-    X = np.tile(X0.reshape(len(X0),1), (1, gme.freqs.shape[1]))
+    X = np.tile(X0.reshape(len(X0), 1), (1, gme.freqs.shape[1]))
 
     if trim_light_cone is False:
         freqs = gme.freqs
     elif trim_light_cone is True:
-        k_squared = np.tile((gme.kpoints[0]**2+gme.kpoints[1]**2)**(1/2), (gme.numeig, 1)).T
-        filter = gme.freqs/(np.abs(k_squared - lc_trim) + 1e-10) <= 1/(2*np.pi)
+        k_squared = np.tile((gme.kpoints[0] ** 2 + gme.kpoints[1] ** 2) ** (1 / 2), (gme.numeig, 1)).T
+        filter = gme.freqs / (np.abs(k_squared - lc_trim) + 1e-10) <= 1 / (2 * np.pi)
 
         freqs = gme.freqs[filter]
         X = X[filter]
@@ -86,23 +87,23 @@ def bands(
         if len(gme.freqs_im) == 0:
             gme.run_im()
         freqs_im = np.array(gme.freqs_im).flatten() + 1e-16
-        Q = gme.freqs.flatten()/2/freqs_im
-        Q_max = np.max(Q[Q<Q_clip])
+        Q = gme.freqs.flatten() / 2 / freqs_im
+        Q_max = np.max(Q[Q < Q_clip])
 
         p = ax.scatter(X.flatten(), gme.freqs.flatten(),
-                        c=Q, cmap=Q_cmap, s=markersize**2, vmax=Q_max, 
-                        norm=mpl.colors.LogNorm(), edgecolors=markeredgecolor, 
-                        linewidth=markeredgewidth)
+                       c=Q, cmap=Q_cmap, s=markersize ** 2, vmax=Q_max,
+                       norm=mpl.colors.LogNorm(), edgecolors=markeredgecolor,
+                       linewidth=markeredgewidth)
         plt.colorbar(p, ax=ax, label="Radiative quality factor", extend="max")
     else:
         ax.plot(X, freqs, 'o', c="#1f77b4", label="", ms=markersize,
-                    mew=markeredgewidth, mec=markeredgecolor)
+                mew=markeredgewidth, mec=markeredgecolor)
 
     if cone:
         eps_clad = [gme.phc.claddings[0].eps_avg, gme.phc.claddings[-1].eps_avg]
-        vec_LL = np.sqrt(np.square(gme.kpoints[0, :]) + 
-            np.square(gme.kpoints[1, :])) / 2 / np.pi / np.sqrt(max(eps_clad))
-        ax.fill_between(X0, vec_LL,  max(100, vec_LL.max(), gme.freqs[:].max()), 
+        vec_LL = np.sqrt(np.square(gme.kpoints[0, :]) +
+                         np.square(gme.kpoints[1, :])) / 2 / np.pi / np.sqrt(max(eps_clad))
+        ax.fill_between(X0, vec_LL, max(100, vec_LL.max(), gme.freqs[:].max()),
                         facecolor=conecolor, zorder=0)
 
     ax.set_xlim(left=0, right=max(X0))
@@ -112,9 +113,9 @@ def bands(
 
     return ax
 
-def _plot_eps(eps_r, clim=None, ax=None, extent=None, cmap='Greys', 
-    cbar=False, cax=None):
 
+def _plot_eps(eps_r, clim=None, ax=None, extent=None, cmap='Greys',
+              cbar=False, cax=None):
     if ax is None:
         fig, ax = plt.subplots(1, constrained_layout=True)
 
@@ -123,30 +124,31 @@ def _plot_eps(eps_r, clim=None, ax=None, extent=None, cmap='Greys',
         im.set_clim(vmin=clim[0], vmax=clim[1])
 
     if cbar:
-        cax = ax.figure.add_axes([ax.get_position().x1+0.01,
-            ax.get_position().y0, 0.02, ax.get_position().height])
+        cax = ax.figure.add_axes([ax.get_position().x1 + 0.01,
+                                  ax.get_position().y0, 0.02, ax.get_position().height])
         plt.colorbar(im, cax=cax)
         if cax is not None:
             plt.colorbar(im, ax=ax, cax=cax)
         else:
             plt.colorbar(im, ax=ax)
-        
+
     return im
 
-def _plot_circle(x, y, r, ax=None, color='b', lw=1, npts=51):
 
+def _plot_circle(x, y, r, ax=None, color='b', lw=1, npts=51):
     if ax is None:
         fig, ax = plt.subplots(1, constrained_layout=True)
 
-    phi = np.linspace(0, 2*np.pi, npts)
+    phi = np.linspace(0, 2 * np.pi, npts)
     xs = x + r * np.cos(phi)
     ys = y + r * np.sin(phi)
     pl = ax.plot(xs, ys, c=color, lw=lw)
 
     return pl
 
+
 def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
-             cbar=False, cmap='Greys', periods=None):
+        cbar=False, cmap='Greys', periods=None):
     """Plot the in-plane permittivity distribution of a Layer instance
 
     Parameters
@@ -181,8 +183,9 @@ def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
 
     _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap)
 
+
 def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
-               extent=None, periods = None, align_to_lattice_vectors=False):
+               extent=None, periods=None, align_to_lattice_vectors=False):
     """
 
     :param layer:
@@ -200,7 +203,7 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
     a2 = layer.lattice.a2
 
     if extent == None:
-        uc_vert = np.array([[0,0], a1,a1+a2,a2]).T
+        uc_vert = np.array([[0, 0], a1, a1 + a2, a2]).T
 
         extent = min(uc_vert[0]), max(uc_vert[0]), min(uc_vert[1]), max(uc_vert[1])
 
@@ -209,7 +212,6 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
 
         extent = extent[0] - diff_x / 2, extent[1] - diff_x / 2, extent[2] - diff_y / 2, extent[3] - diff_y / 2
 
-
     xmin, xmax, ymin, ymax = extent
     if ax is None:
         fig, ax = plt.subplots(1, constrained_layout=False)
@@ -217,27 +219,27 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
         ax.set_ylim(ymin, ymax)
         ax.set_aspect('equal')
     else:
-        fig=ax.figure
+        fig = ax.figure
 
     if periods == None:
-        ext_vert = np.array([[xmin, ymin],[xmin, ymax],[xmax, ymin],[xmax, ymax] ]).T
+        ext_vert = np.array([[xmin, ymin], [xmin, ymax], [xmax, ymin], [xmax, ymax]]).T
 
-        mat = np.linalg.inv(np.array([a1,a2]).T)
-        per_mat=np.matmul(mat, ext_vert)
+        mat = np.linalg.inv(np.array([a1, a2]).T)
+        per_mat = np.matmul(mat, ext_vert)
 
-        bounding = np.int_(np.sign(per_mat)*np.ceil(np.abs(per_mat)))
+        bounding = np.int_(np.sign(per_mat) * np.ceil(np.abs(per_mat)))
         periods = min(bounding[0]), max(bounding[0]), min(bounding[1]), max(bounding[1])
     elif isinstance(periods, int):
         periods = -periods, periods, -periods, periods
 
-    elif np.asanyarray(periods).__len__()==2:
+    elif np.asanyarray(periods).__len__() == 2:
         periods = -periods[0], periods[0], -periods[1], periods[1]
 
     norm = mpl.colors.Normalize()
 
-
     xyo = [n1 * a1 + n2 * a2 for n1, n2, i in
-           itertools.product(range(periods[0], periods[1] + 1), range(periods[2], periods[3] + 1), range(layer.shapes.__len__()))]
+           itertools.product(range(periods[0], periods[1] + 1), range(periods[2], periods[3] + 1),
+                             range(layer.shapes.__len__()))]
     patches = [shape.return_patch() for shape in layer.shapes]
 
     col = mpl.collections.PatchCollection(patches, offsets=xyo, transOffset=ax.transData,
@@ -251,7 +253,7 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
     cmap = plt.get_cmap(cmap)
 
     colors = cmap(norm(eps_list))
-    colors[:,-1] = alpha*np.ones(eps_list.__len__())
+    colors[:, -1] = alpha * np.ones(eps_list.__len__())
 
     ax.set_facecolor(colors[0])
     col.set_facecolors(colors[1:])
@@ -263,7 +265,7 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
 
 
 def eps_xz(phc, y=0, Nx=100, Nz=50, ax=None, clim=None,
-             cbar=False, cmap='Greys', cax=None, plot=True):
+           cbar=False, cmap='Greys', cax=None, plot=True):
     """Plot permittivity cross section of a photonic crystal in an xz plane
 
     Parameters
@@ -305,19 +307,20 @@ def eps_xz(phc, y=0, Nx=100, Nz=50, ax=None, clim=None,
     (xgrid, zgrid) = (phc.lattice.xy_grid(Nx=Nx)[0], phc.z_grid(Nz=Nz))
 
     [xmesh, zmesh] = np.meshgrid(xgrid, zgrid)
-    ymesh = y*np.ones(xmesh.shape)
+    ymesh = y * np.ones(xmesh.shape)
 
     eps_r = phc.get_eps((xmesh, ymesh, zmesh))
     extent = [xgrid[0], xgrid[-1], zgrid[0], zgrid[-1]]
 
     if plot:
         _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap,
-            cax=cax)
+                  cax=cax)
 
     return eps_r
 
+
 def eps_xy(phc, z=0, Nx=100, Ny=100, ax=None, clim=None,
-             cbar=False, cmap='Greys', cax=None, plot=True):
+           cbar=False, cmap='Greys', cax=None, plot=True):
     """Plot permittivity cross section of a photonic crystal in an xy plane
 
     Parameters
@@ -358,20 +361,20 @@ def eps_xy(phc, z=0, Nx=100, Ny=100, ax=None, clim=None,
     """
     (xgrid, ygrid) = phc.lattice.xy_grid(Nx=Nx, Ny=Ny)
     [xmesh, ymesh] = np.meshgrid(xgrid, ygrid)
-    zmesh = z*np.ones(xmesh.shape)
+    zmesh = z * np.ones(xmesh.shape)
 
     eps_r = phc.get_eps((xmesh, ymesh, zmesh))
     extent = [xgrid[0], xgrid[-1], ygrid[0], ygrid[-1]]
 
     if plot:
         _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap,
-            cax=cax)
+                  cax=cax)
 
     return eps_r
 
 
 def eps_yz(phc, x=0, Ny=100, Nz=50, ax=None, clim=None,
-             cbar=False, cmap='Greys', cax=None, plot=True):
+           cbar=False, cmap='Greys', cax=None, plot=True):
     """Plot permittivity cross section of a photonic crystal in an yz plane
 
     Parameters
@@ -412,16 +415,17 @@ def eps_yz(phc, x=0, Ny=100, Nz=50, ax=None, clim=None,
     """
     (ygrid, zgrid) = (phc.lattice.xy_grid(Ny=Ny)[1], phc.z_grid(Nz=Nz))
     [ymesh, zmesh] = np.meshgrid(ygrid, zgrid)
-    xmesh = x*np.ones(ymesh.shape)
+    xmesh = x * np.ones(ymesh.shape)
 
     eps_r = phc.get_eps((xmesh, ymesh, zmesh))
     extent = [ygrid[0], ygrid[-1], zgrid[0], zgrid[-1]]
 
     if plot:
         _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap,
-            cax=cax)
+                  cax=cax)
 
     return eps_r
+
 
 def shapes(layer, ax=None, npts=101, color='k', lw=1, pad=True):
     """Plot all shapes of Layer
@@ -445,7 +449,7 @@ def shapes(layer, ax=None, npts=101, color='k', lw=1, pad=True):
             if pad == True:
                 for (x_p, y_p) in xy_p:
                     _plot_circle(x + x_p, y + y_p, r,
-                                ax=ax, color=color, lw=lw, npts=npts)
+                                 ax=ax, color=color, lw=lw, npts=npts)
         else:
             # Everything else should be a Poly subclass
             ax.plot(shape.x_edges, shape.y_edges, c=color, lw=lw)
@@ -458,9 +462,9 @@ def shapes(layer, ax=None, npts=101, color='k', lw=1, pad=True):
     ax.set_aspect('equal')
 
 
-def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True, 
-                cmap='Greys', gridspec=None, fig=None, figsize=None,
-                xy=True, xz=False, yz=False):
+def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True,
+              cmap='Greys', gridspec=None, fig=None, figsize=None,
+              xy=True, xz=False, yz=False):
     """Plot permittivity for all cross sections of a photonic crystal
 
     Parameters
@@ -510,11 +514,11 @@ def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True,
         phc = struct
     else:
         raise ValueError("'struct' should be a 'PhotCryst' or a "
-                                "'GuidedModeExp' instance")
+                         "'GuidedModeExp' instance")
 
     (eps_min, eps_max) = phc.get_eps_bounds()
 
-    if cladding==True:
+    if cladding == True:
         all_layers = [phc.claddings[0]] + phc.layers + [phc.claddings[1]]
     else:
         all_layers = phc.layers
@@ -522,16 +526,16 @@ def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True,
 
     (xb, yb) = all_layers[0].lattice.xy_grid(Nx=2, Ny=2)
     zb = phc.z_grid(Nz=2)
-    ar_xy = (yb[1]-yb[0])/(xb[1]-xb[0]) # aspect ratio
-    ar_xz = (zb[1]-zb[0])/(xb[1]-xb[0])
-    ar_yz = (zb[1]-zb[0])/(yb[1]-yb[0])
+    ar_xy = (yb[1] - yb[0]) / (xb[1] - xb[0])  # aspect ratio
+    ar_xz = (zb[1] - zb[0]) / (xb[1] - xb[0])
+    ar_yz = (zb[1] - zb[0]) / (yb[1] - yb[0])
 
     ars = []
-    if xz==True: ars.append(ar_xz)
-    if yz==True: ars.append(ar_yz)
-    if xy==True: ars = ars + [ar_xy for i in range(N_layers)] 
- 
-    if isinstance(figsize, float) or isinstance(figsize, int): 
+    if xz == True: ars.append(ar_xz)
+    if yz == True: ars.append(ar_yz)
+    if xy == True: ars = ars + [ar_xy for i in range(N_layers)]
+
+    if isinstance(figsize, float) or isinstance(figsize, int):
         xw = figsize
     else:
         xw = 4
@@ -539,19 +543,19 @@ def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True,
     # Width in x of the image, colorbar takes 5% by default, and exclude some
     # space for the axis label
     cbwidth = 0.05
-    xwi = xw-0.3 if cbar == False else (1-cbwidth)*xw-0.8
+    xwi = xw - 0.3 if cbar == False else (1 - cbwidth) * xw - 0.8
 
     if not isinstance(figsize, tuple):
-        figsize = (xw, xwi*sum(ars) + len(ars)*0.2)
+        figsize = (xw, xwi * sum(ars) + len(ars) * 0.2)
 
     if gridspec is None and fig is None:
         fig = plt.figure(constrained_layout=True, figsize=figsize)
         if cbar == False:
-            gs = mpl.gridspec.GridSpec(len(ars), 1, figure=fig, 
-                height_ratios=ars)
+            gs = mpl.gridspec.GridSpec(len(ars), 1, figure=fig,
+                                       height_ratios=ars)
         else:
-            gs = mpl.gridspec.GridSpec(len(ars), 2, figure=fig, 
-                height_ratios=ars, width_ratios=[1-cbwidth, cbwidth])
+            gs = mpl.gridspec.GridSpec(len(ars), 2, figure=fig,
+                                       height_ratios=ars, width_ratios=[1 - cbwidth, cbwidth])
     elif gridspec is not None and fig is not None:
         if cbar == False:
             gs = mpl.gridspec.GridSpecFromSubplotSpec(len(ars), 1, gridspec)
@@ -559,22 +563,22 @@ def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True,
             gs = mpl.gridspec.GridSpecFromSubplotSpec(len(ars), 2, gridspec)
     else:
         raise ValueError("Parameters gridspec and fig should be both specified "
-                            "or both unspecified")
-    axind = 0 
+                         "or both unspecified")
+    axind = 0
 
     if xz == True:
         ax1 = fig.add_subplot(gs[axind, 0])
-        cax = None if cbar==False else fig.add_subplot(gs[axind, 1])
+        cax = None if cbar == False else fig.add_subplot(gs[axind, 1])
         eps_xz(phc, ax=ax1, Nx=Nx, Nz=Nz,
-                clim=[eps_min, eps_max], cbar=cbar, cmap=cmap, cax=cax)
+               clim=[eps_min, eps_max], cbar=cbar, cmap=cmap, cax=cax)
         ax1.set_title("xz at y = 0")
         axind += 1
 
     if yz == True:
         ax2 = fig.add_subplot(gs[axind, 0])
-        cax = None if cbar==False else fig.add_subplot(gs[axind, 1])
+        cax = None if cbar == False else fig.add_subplot(gs[axind, 1])
         eps_yz(phc, ax=ax2, Ny=Ny, Nz=Nz,
-                clim=[eps_min, eps_max], cbar=cbar, cmap=cmap, cax=cax)
+               clim=[eps_min, eps_max], cbar=cbar, cmap=cmap, cax=cax)
         ax2.set_title("yz at x = 0")
         axind += 1
 
@@ -582,24 +586,24 @@ def structure(struct, Nx=100, Ny=100, Nz=50, cladding=False, cbar=True,
         ax = []
 
         for indl in range(N_layers):
-            zpos = (all_layers[indl].z_max + all_layers[indl].z_min)/2
-            ax.append(fig.add_subplot(gs[axind+indl, 0]))
-            cax = None if cbar==False else fig.add_subplot(gs[axind+indl, 1])
+            zpos = (all_layers[indl].z_max + all_layers[indl].z_min) / 2
+            ax.append(fig.add_subplot(gs[axind + indl, 0]))
+            cax = None if cbar == False else fig.add_subplot(gs[axind + indl, 1])
             eps_xy(phc, z=zpos, ax=ax[indl], Nx=Nx, Ny=Ny,
-                    clim=[eps_min, eps_max], cbar=cbar, cmap=cmap, cax=cax)
-            if cladding==True:
-                if indl > 0 and indl < N_layers-1:
+                   clim=[eps_min, eps_max], cbar=cbar, cmap=cmap, cax=cax)
+            if cladding == True:
+                if indl > 0 and indl < N_layers - 1:
                     ax[indl].set_title("xy in layer %d" % indl)
-                elif indl==N_layers-1:
+                elif indl == N_layers - 1:
                     ax[0].set_title("xy in lower cladding")
                     ax[-1].set_title("xy in upper cladding")
             else:
                 ax[indl].set_title("xy in layer %d" % indl)
 
 
-def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True, 
-                cmap='Greys', gridspec=None, fig=None, figsize=None,
-                xz=False, yz=False):
+def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True,
+           cmap='Greys', gridspec=None, fig=None, figsize=None,
+           xz=False, yz=False):
     """Plot a permittivity cross section computed from an inverse FT
 
     The Fourier transform is computed with respect to the GME reciprocal
@@ -642,24 +646,24 @@ def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True,
         str_type = 'pwe'
     else:
         raise ValueError("'struct' should be a 'PlaneWaveExp' or a "
-                                "'GuidedModeExp' instance")
+                         "'GuidedModeExp' instance")
 
-    if cladding==True:
+    if cladding == True:
         if str_type == 'pwe':
             print("Warning: ignoring 'cladding=True' for PlaneWaveExp "
-                   "structure.")
+                  "structure.")
             all_layers = [struct.layer]
         else:
             all_layers = [struct.phc.claddings[0]] + struct.phc.layers + \
-                        [struct.phc.claddings[1]]
+                         [struct.phc.claddings[1]]
     else:
         all_layers = struct.phc.layers if str_type == 'gme' else [struct.layer]
     N_layers = len(all_layers)
 
     (xb, yb) = all_layers[0].lattice.xy_grid(Nx=2, Ny=2)
-    ar = (yb[1]-yb[0])/(xb[1]-xb[0]) # aspect ratio
+    ar = (yb[1] - yb[0]) / (xb[1] - xb[0])  # aspect ratio
 
-    if isinstance(figsize, float) or isinstance(figsize, int): 
+    if isinstance(figsize, float) or isinstance(figsize, int):
         xw = figsize
     else:
         xw = 4
@@ -667,10 +671,10 @@ def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True,
     # Width in x of the image, colorbar takes 5% by default, and exclude some
     # space for the axis label
     cbwidth = 0.05
-    xwi = xw-0.3 if cbar == False else (1-cbwidth)*xw-0.8
+    xwi = xw - 0.3 if cbar == False else (1 - cbwidth) * xw - 0.8
 
     if not isinstance(figsize, tuple):
-        figsize = (xw, xwi*N_layers*ar + N_layers*0.2)
+        figsize = (xw, xwi * N_layers * ar + N_layers * 0.2)
 
     if gridspec is None and fig is None:
         fig = plt.figure(constrained_layout=True, figsize=figsize)
@@ -678,7 +682,7 @@ def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True,
             gs = mpl.gridspec.GridSpec(N_layers, 1, figure=fig)
         else:
             gs = mpl.gridspec.GridSpec(N_layers, 2, figure=fig,
-                     width_ratios=[1-cbwidth, cbwidth])
+                                       width_ratios=[1 - cbwidth, cbwidth])
     elif gridspec is not None and fig is not None:
         if cbar == False:
             gs = mpl.gridspec.GridSpecFromSubplotSpec(len(ars), 1, gridspec)
@@ -686,7 +690,7 @@ def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True,
             gs = mpl.gridspec.GridSpecFromSubplotSpec(len(ars), 2, gridspec)
     else:
         raise ValueError("Parameters gridspec and fig should be both specified "
-                            "or both unspecified")
+                         "or both unspecified")
 
     (eps_min, eps_max) = (all_layers[0].eps_b, all_layers[0].eps_b)
     ims = []
@@ -695,26 +699,26 @@ def eps_ft(struct, Nx=100, Ny=100, cladding=False, cbar=True,
     for (indl, layer) in enumerate(all_layers):
         ax.append(fig.add_subplot(gs[indl, :]))
         (eps_r, xgrid, ygrid) = struct.get_eps_xy(Nx=Nx, Ny=Ny,
-                                z=(layer.z_min + layer.z_max)/2)
+                                                  z=(layer.z_min + layer.z_max) / 2)
 
         eps_min = min([eps_min, np.amin(np.real(eps_r))])
         eps_max = max([eps_max, np.amax(np.real(eps_r))])
         extent = [xgrid[0], xgrid[-1], ygrid[0], ygrid[-1]]
-        cax = None if cbar==False else fig.add_subplot(gs[indl, 1])
-        im = _plot_eps(np.real(eps_r), ax=ax[indl], extent=extent, 
-                        cbar=cbar, cax=cax)
+        cax = None if cbar == False else fig.add_subplot(gs[indl, 1])
+        im = _plot_eps(np.real(eps_r), ax=ax[indl], extent=extent,
+                       cbar=cbar, cax=cax)
         ims.append(im)
         if cladding:
-            if indl > 0 and indl < N_layers-1:
+            if indl > 0 and indl < N_layers - 1:
                 ax[indl].set_title("xy in layer %d" % indl)
-            elif indl==N_layers-1:
+            elif indl == N_layers - 1:
                 ax[0].set_title("xy in lower cladding")
                 ax[-1].set_title("xy in upper cladding")
         else:
             ax[indl].set_title("xy in layer %d" % indl)
-    
+
     for il in range(N_layers):
-        ims[il].set_clim(vmin=eps_min, vmax=eps_max) 
+        ims[il].set_clim(vmin=eps_min, vmax=eps_max)
 
 
 def reciprocal(struct):
@@ -729,23 +733,24 @@ def reciprocal(struct):
     ax.set_title("Reciprocal lattice")
     return fig, ax
 
+
 def field(
-    struct, 
-    field, 
-    kind, 
-    mind, 
-    x=None, 
-    y=None, 
-    z=None, 
-    periodic=True,
-    component='xyz', 
-    val='re', 
-    N1=100, 
-    N2=100, 
-    cbar=True, 
-    eps=True,
-    eps_levels=None,
-    norm=False
+        struct,
+        field,
+        kind,
+        mind,
+        x=None,
+        y=None,
+        z=None,
+        periodic=True,
+        component='xyz',
+        val='re',
+        N1=100,
+        N2=100,
+        cbar=True,
+        eps=True,
+        eps_levels=None,
+        norm=False
 ):
     """Visualize mode fields over a 2D slice in x, y, or z
 
@@ -795,65 +800,63 @@ def field(
         str_type = 'pwe'
     else:
         raise ValueError("'struct' should be a 'PlaneWaveExp' or a "
-                                "'GuidedModeExp' instance")
+                         "'GuidedModeExp' instance")
 
     field = field.lower()
     val = val.lower()
     component = component.lower()
 
-
     # Get the field fourier components
     if (x is None and y is None and z is None and str_type == 'pwe') or \
-        (z is not None and x is None and y is None):
+            (z is not None and x is None and y is None):
 
         zval = 0. if z == None else z
         (fi, grid1, grid2) = struct.get_field_xy(field, kind, mind, z,
-                                        component=component, Nx=N1, Ny=N2)
+                                                 component=component, Nx=N1, Ny=N2)
         if eps == True:
             if str_type == 'pwe':
                 epsr = struct.layer.get_eps(np.meshgrid(
-                            grid1, grid2)).squeeze()
+                    grid1, grid2)).squeeze()
 
             else:
                 epsr = struct.phc.get_eps(np.meshgrid(
-                            grid1, grid2, np.array(z))).squeeze()
+                    grid1, grid2, np.array(z))).squeeze()
 
         pl, o, v = 'xy', 'z', zval
-        if periodic==False:
-            kenv = np.exp(1j*grid1*struct.kpoints[0, kind] + 
-                            1j*grid2*struct.kpoints[1, kind])
+        if periodic == False:
+            kenv = np.exp(1j * grid1 * struct.kpoints[0, kind] +
+                          1j * grid2 * struct.kpoints[1, kind])
 
     elif x is not None and z is None and y is None:
         if str_type == 'pwe':
             raise NotImplementedError("Only plotting in the xy-plane is "
-                "supported for PlaneWaveExp structures.")
+                                      "supported for PlaneWaveExp structures.")
 
-        (fi, grid1, grid2) = struct.get_field_yz(field, kind, mind, x, 
-                                            component=component, Ny=N1, Nz=N2)
-        if eps==True:
+        (fi, grid1, grid2) = struct.get_field_yz(field, kind, mind, x,
+                                                 component=component, Ny=N1, Nz=N2)
+        if eps == True:
             epsr = struct.phc.get_eps(np.meshgrid(
-                            np.array(x), grid1, grid2)).squeeze().transpose()
+                np.array(x), grid1, grid2)).squeeze().transpose()
         pl, o, v = 'yz', 'x', x
-        if periodic==False:
-            kenv = np.exp(1j*grid1*struct.kpoints[1, kind] +
-                            1j*x*struct.kpoints[0, kind])
+        if periodic == False:
+            kenv = np.exp(1j * grid1 * struct.kpoints[1, kind] +
+                          1j * x * struct.kpoints[0, kind])
     elif y is not None and z is None and x is None:
         if str_type == 'pwe':
             raise NotImplementedError("Only plotting in the xy-plane is "
-                "supported for PlaneWaveExp structures.")
+                                      "supported for PlaneWaveExp structures.")
 
-        (fi, grid1, grid2) = struct.get_field_xz(field, kind, mind, y, 
-                                            component=component, Nx=N1, Nz=N2)
-        if eps==True:
+        (fi, grid1, grid2) = struct.get_field_xz(field, kind, mind, y,
+                                                 component=component, Nx=N1, Nz=N2)
+        if eps == True:
             epsr = struct.phc.get_eps(np.meshgrid(
-                            grid1, np.array(y), grid2)).squeeze().transpose()
+                grid1, np.array(y), grid2)).squeeze().transpose()
         pl, o, v = 'xz', 'y', y
-        if periodic==False:
-            kenv = np.exp(1j*grid1*struct.kpoints[0, kind] +
-                            1j*y*struct.kpoints[1, kind])
+        if periodic == False:
+            kenv = np.exp(1j * grid1 * struct.kpoints[0, kind] +
+                          1j * y * struct.kpoints[1, kind])
     else:
         raise ValueError("Specify exactly one of 'x', 'y', or 'z'.")
-
 
     if norm:
         sp = 1
@@ -862,9 +865,9 @@ def field(
         f = np.zeros((N2, N1), dtype=np.complex128)
 
         for ic, comp in enumerate(component):
-            f += fi[comp]**2
+            f += fi[comp] ** 2
 
-        f = f**(1/2)
+        f = f ** (1 / 2)
 
         if periodic == False:
             f *= kenv
@@ -909,7 +912,7 @@ def field(
         f1, axs = plt.subplots(1, sp, constrained_layout=True)
         for ic, comp in enumerate(component):
             f = fi[comp]
-            if periodic==False:
+            if periodic == False:
                 f *= kenv
 
             extent = [grid1[0], grid1[-1], grid2[0], grid2[-1]]
@@ -918,34 +921,34 @@ def field(
             else:
                 ax = axs
 
-            if val=='re' or val=='im':
-                Z = np.real(f) if val=='re' else np.imag(f)
+            if val == 're' or val == 'im':
+                Z = np.real(f) if val == 're' else np.imag(f)
                 cmap = 'RdBu'
                 vmax = np.abs(Z).max()
                 vmin = -vmax
-            elif val=='abs':
+            elif val == 'abs':
                 Z = np.abs(f)
-                cmap='magma'
+                cmap = 'magma'
                 vmax = Z.max()
                 vmin = 0
             else:
                 raise ValueError("'val' can be 'im', 're', or 'abs'")
 
             im = ax.imshow(Z, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax,
-                            origin='lower')
+                           origin='lower')
 
-            if eps==True:
+            if eps == True:
                 lcs = 'k' if val.lower() in ['re', 'im'] else 'w'
                 ax.contour(grid1, grid2, epsr, 0 if eps_levels is None else \
-                            eps_levels, colors=lcs, linewidths=1, alpha=0.5)
+                    eps_levels, colors=lcs, linewidths=1, alpha=0.5)
 
-            if cbar==True:
+            if cbar == True:
                 f1.colorbar(im, ax=ax, shrink=0.5)
 
             title_str = ""
 
             title_str += "%s$(%s_{%s%d})$ at $k_{%d}$\n" % (val.capitalize(),
-                                        field.capitalize(), comp, mind, kind)
+                                                            field.capitalize(), comp, mind, kind)
 
     title_str += "%s-plane at $%s = %1.2f$\n" % (pl, o, v)
     title_str += "$f = %.4f$" % (struct.freqs[kind, mind])
