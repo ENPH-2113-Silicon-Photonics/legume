@@ -181,69 +181,85 @@ def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
 
     _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap)
 
-def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys',
-               extents=None, periods = None, align_to_lattice_vectors=False):
+def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
+               extent=None, periods = None, align_to_lattice_vectors=False):
+    """
 
-    if ax is None:
-        fig, ax = plt.subplots(1, constrained_layout=False)
-    else:
-        fig=ax.figure
+    :param layer:
+    :param ax:
+    :param cax:
+    :param cbar:
+    :param cmap:
+    :param extent:
+    :param periods:
+    :param align_to_lattice_vectors:
+    :return:
+    """
+
     a1 = layer.lattice.a1
     a2 = layer.lattice.a2
 
-    if extents == None:
-        points = np.array([[0,0], a1,a1+a2,a2]).T
+    if extent == None:
+        uc_vert = np.array([[0,0], a1,a1+a2,a2]).T
 
-        extents = min(points[0]), max(points[0]), min(points[1]), max(points[1])
+        extent = min(uc_vert[0]), max(uc_vert[0]), min(uc_vert[1]), max(uc_vert[1])
 
-        diff_x = (extents[1]-extents[0])
-        diff_y = (extents[3]-extents[2])
+        diff_x = (extent[1] - extent[0])
+        diff_y = (extent[3] - extent[2])
 
-        extents = extents[0]-diff_x/2, extents[1]-diff_x/2, extents[2]-diff_y/2, extents[3]-diff_y/2
+        extent = extent[0] - diff_x / 2, extent[1] - diff_x / 2, extent[2] - diff_y / 2, extent[3] - diff_y / 2
 
-    xmin, xmax, ymin, ymax = extents
 
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
+    xmin, xmax, ymin, ymax = extent
+    if ax is None:
+        fig, ax = plt.subplots(1, constrained_layout=False)
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
+        ax.set_aspect('equal')
+    else:
+        fig=ax.figure
+
+    if periods == None:
+        ext_vert = np.array([[xmin, ymin],[xmin, ymax],[xmax, ymin],[xmax, ymax] ]).T
+
+        mat = np.linalg.inv(np.array([a1,a2]).T)
+        per_mat=np.matmul(mat, ext_vert)
+
+        bounding = np.int_(np.sign(per_mat)*np.ceil(np.abs(per_mat)))
+        periods = min(bounding[0]), max(bounding[0]), min(bounding[1]), max(bounding[1])
+    elif isinstance(periods, int):
+        periods = -periods, periods, -periods, periods
+
+    elif np.asanyarray(periods).__len__()==2:
+        periods = -periods[0], periods[0], -periods[1], periods[1]
+
     norm = mpl.colors.Normalize()
 
-    eps_list = [layer.eps_b]
 
+    xyo = [n1 * a1 + n2 * a2 for n1, n2, i in
+           itertools.product(range(periods[0], periods[1] + 1), range(periods[2], periods[3] + 1), range(layer.shapes.__len__()))]
+    patches = [shape.return_patch() for shape in layer.shapes]
+
+    col = mpl.collections.PatchCollection(patches, offsets=xyo, transOffset=ax.transData,
+                                          transform=mpl.transforms.AffineDeltaTransform(ax.transData))
+
+    eps_list = [layer.eps_b]
     for shape in layer.shapes:
         eps_list.append(shape.eps)
 
     norm.autoscale(np.array(eps_list))
-    colors = plt.get_cmap(cmap)
+    cmap = plt.get_cmap(cmap)
+
+    colors = cmap(norm(eps_list))
+    colors[:,-1] = alpha*np.ones(eps_list.__len__())
+
+    ax.set_facecolor(colors[0])
+    col.set_facecolors(colors[1:])
+    ax.add_collection(col)
+
     if cbar:
-        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=ax)
-
-    eps_cmap = lambda eps: colors(norm(eps))
-
-    if periods == None:
-        max_point = np.linalg.norm(np.array([max(np.abs((xmin,xmax))),max(np.abs((ymin,ymax)))]))
-        periods = np.int_(max_point/np.linalg.norm(a1)), np.int_(max_point/np.linalg.norm(a2))
-
-    xyo = [n1 * a1 + n2 * a2 for n1, n2 in
-           itertools.product(range(-periods[0], periods[0] + 1), range(-periods[1], periods[1] + 1))]
-
-    for shape in layer.shapes:
-
-        # Incorporating periodicity
-        # This can be made significantly faster by using matplotlib.collections and offsets.
-        # However collections display artists in pixel coordinates so transformations must be applied to correct.
-        # Naive transformations fail if figure is further manipulates.
-
-        for offset in xyo:
-            patch = shape.return_patch(eps_cmap, offset)
-            ax.add_patch(patch)
-
-    ax.set_facecolor(eps_cmap(layer.eps_b))
-
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
     return fig, ax
-
-
-
-
 
 
 def eps_xz(phc, y=0, Nx=100, Nz=50, ax=None, clim=None,

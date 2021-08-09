@@ -3,7 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from chickpea import utils
-
+from legume import viz
 class XYField:
 
     def __init__(self, res, z_dimension, polarization, modulation=np.array([0,0]), renormalize=False, **kwargs):
@@ -105,11 +105,14 @@ class XYField:
 
         else:
             raise ValueError("Missing initializing variable \"gme\" or \"field\".")
-        if 'eps_r' in kwargs:
-            self.eps_r=kwargs['eps_r']
-        else:
-            self.eps_r = self.phc.get_eps(
-                (self.meshgrid[0], self.meshgrid[1], self.z_dimension * np.ones(self.meshgrid[0].shape)))
+
+        for layer in self.phc.layers + self.phc.claddings:
+            zlayer = (self.z_dimension >= layer.z_min) * (self.z_dimension < layer.z_max)
+            if np.sum(zlayer) > 0:
+                self.layer = layer
+                break
+
+
 
     @property
     def freq(self):
@@ -155,8 +158,8 @@ class XYField:
     def field(self, time=0):
         return self._field(time)
 
-    def eps(self):
-        return self.eps_r
+    def eps_dist(self):
+        return self.phc.get_eps((self.meshgrid[0], self.meshgrid[1], self.z_dimension * np.ones(self.meshgrid[0].shape)))
 
     def visualize_field(self, field, component, time=0, profile=True, poynting_vector=False, pv_coarseness=1,
                         eps=True, val='re', normalize=False, fig=None, figsize=None):
@@ -221,8 +224,7 @@ class XYField:
 
 
         if eps:
-            ax.imshow(self.eps(), cmap=plt.cm.binary, alpha=.3,
-                      interpolation='bilinear', extent=extent, origin='lower')
+            viz.eps_shapes(layer=self.layer, ax=ax, extent=extent, alpha=0.3)
         if poynting_vector:
             S_0 = self.poynting_vector(time)[0]
             S_1 = self.poynting_vector(time)[1]

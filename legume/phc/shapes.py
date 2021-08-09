@@ -58,7 +58,7 @@ class Shape(object):
         raise NotImplementedError("is_inside() needs to be implemented by"
             "Shape subclasses")
 
-    def return_patch(self, eps_cmap: mpl.colors.Colormap, offset=(0,0)):
+    def return_patch(self):
         """Return matplotlib patch representing the shape
 
         Parameters
@@ -112,7 +112,7 @@ class Circle(Shape):
         return (np.square(x - self.x_cent) + np.square(y - self.y_cent)
                             <= np.square(self.r))
 
-    def return_patch(self, eps_cmap: mpl.colors.Colormap, offset=(0,0)):
+    def return_patch(self):
         """Return matplotlib patch representing the shape
 
         Parameters
@@ -120,7 +120,7 @@ class Circle(Shape):
         eps_cmap : mpl.colors.Colormap mapping permitivity to color
         offset : coordinates of translation on shape.
         """
-        return mpl.patches.circle((self.x_cent + offset[0], self.y_cent + offset[1]), self.r, facecolor=eps_cmap(self.eps))
+        return mpl.patches.circle((self.x_cent + offset[0], self.y_cent + offset[1]), self.r)
 
 
 class Poly(Shape):
@@ -252,7 +252,7 @@ class Poly(Shape):
 
         return self
 
-    def return_patch(self, eps_cmap: mpl.colors.Colormap, offset=(0,0)):
+    def return_patch(self):
         """Return matplotlib patch representing the shape
 
         Parameters
@@ -260,9 +260,9 @@ class Poly(Shape):
         eps_cmap : mpl.colors.Colormap mapping permitivity to color
         offset : coordinates of translation on shape.
         """
-        vert = np.vstack((np.array(self.x_edges)+offset[0], np.array(self.y_edges)+offset[1]))
+        vert = np.vstack((np.array(self.x_edges), np.array(self.y_edges)))
 
-        return mpl.patches.Polygon(vert.T, facecolor=eps_cmap(self.eps))
+        return mpl.patches.Polygon(vert.T)
 
 class Square(Poly):
     """Square shape
