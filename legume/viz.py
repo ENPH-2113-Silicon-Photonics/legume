@@ -181,7 +181,7 @@ def eps(layer, Nx=100, Ny=100, ax=None, clim=None,
 
     _plot_eps(eps_r, clim=clim, ax=ax, extent=extent, cbar=cbar, cmap=cmap)
 
-def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
+def eps_shapes(layer, ax=None, fig=None, cbar=False, cmap='Greys', alpha=1,
                extent=None, periods = None, align_to_lattice_vectors=False):
     """
 
@@ -199,7 +199,7 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
     a1 = layer.lattice.a1
     a2 = layer.lattice.a2
 
-    if extent == None:
+    if extent is None:
         uc_vert = np.array([[0,0], a1,a1+a2,a2]).T
 
         extent = min(uc_vert[0]), max(uc_vert[0]), min(uc_vert[1]), max(uc_vert[1])
@@ -209,15 +209,12 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
 
         extent = extent[0] - diff_x / 2, extent[1] - diff_x / 2, extent[2] - diff_y / 2, extent[3] - diff_y / 2
 
-
     xmin, xmax, ymin, ymax = extent
     if ax is None:
         fig, ax = plt.subplots(1, constrained_layout=False)
-        ax.set_xlim(xmin, xmax)
-        ax.set_ylim(ymin, ymax)
-        ax.set_aspect('equal')
-    else:
-        fig=ax.figure
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_aspect('equal')
 
     if periods == None:
         ext_vert = np.array([[xmin, ymin],[xmin, ymax],[xmax, ymin],[xmax, ymax] ]).T
@@ -251,10 +248,12 @@ def eps_shapes(layer, ax=None, cax=None, cbar=False, cmap='Greys', alpha=1,
     cmap = plt.get_cmap(cmap)
 
     colors = cmap(norm(eps_list))
-    colors[:,-1] = alpha*np.ones(eps_list.__len__())
+
+    colors[:,0:3] = alpha*colors[:,0:3] + (1-alpha)*np.array([1,1,1]) # We want alpha to apply as if it were a
 
     ax.set_facecolor(colors[0])
     col.set_facecolors(colors[1:])
+    col.set_edgecolors(np.array([0,0,0,1]))
     ax.add_collection(col)
 
     if cbar:

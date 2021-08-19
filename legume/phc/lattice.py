@@ -59,9 +59,6 @@ class Lattice(object):
         return Voronoi(points)
 
     def get_irreducible_brioullin_zone_vertices(self):
-        if not self.reduced:
-            raise UserWarning("Lattice not reduced, algorithm depends on reduced lattice to function.")
-
         if self.type == 'square':
             return ['G', self.b1 / 2, self.b1 / 2 + self.b2 / 2, 'G']
         elif self.type == 'custom_square':

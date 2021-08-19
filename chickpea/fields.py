@@ -208,23 +208,25 @@ class XYField:
                 self._field_ax_builder(ax=ax, field=field_comp, time=time, vmax=vmax, vmin=vmin, cmap=cmap, eps=eps,
                                        poynting_vector=poynting_vector, profile=profile, pv_coarseness=pv_coarseness)
                 i+=1
+
+
         return fig
 
 
     def _field_ax_builder(self, ax, field, time, vmax, vmin, cmap, eps, profile, pv_coarseness, poynting_vector):
 
         extent = self.meshgrid[0].min(), self.meshgrid[0].max(), self.meshgrid[1].min(), self.meshgrid[1].max()
-
+        if eps:
+            viz.eps_shapes(layer=self.layer, ax=ax, extent=extent, alpha=0.3)
 
 
         if profile:
             im=ax.imshow(field, extent=extent, vmax=vmax, vmin=vmin,
-                      cmap=cmap, origin='lower')
+                      cmap=cmap, origin='lower', alpha=1)
 
 
 
-        if eps:
-            viz.eps_shapes(layer=self.layer, ax=ax, extent=extent, alpha=0.3)
+
         if poynting_vector:
             S_0 = self.poynting_vector(time)[0]
             S_1 = self.poynting_vector(time)[1]
@@ -252,11 +254,12 @@ class XYField:
 
             quiv= ax.quiver(np.ravel(xgrid), np.ravel(ygrid), np.ravel(unit_s_0), np.ravel(unit_s_1),
                       color=(colormap(norm(np.ravel(magnitude)))), pivot='mid',
-                      angles='xy', scale_units='xy', scale=1, width=0.0025*pv_coarseness, # Fudge factor on width to make arrows the same shape independent of pv_coarseness.
+                      angles='xy', scale_units='xy', scale=1, width=0.0015*pv_coarseness, # Fudge factor on width to make arrows the same shape independent of pv_coarseness.
                             alpha=0.8)
 
             # The parameters for the quiver
-
+        ax.set_xlim(extent[0], extent[1])
+        ax.set_ylim(extent[2], extent[3])
         return ax
 
     def vizualize_chirality(self, field, component = 'z', time=0, fig=None,figsize=None, eps=True):
@@ -273,8 +276,7 @@ class XYField:
         ax.imshow(np.real(chirality), extent=extent, vmax=vmax, vmin=vmin,
                        cmap='RdBu', origin='lower')
         if eps:
-            ax.imshow(self.eps(), cmap=plt.cm.binary, alpha=.3,
-                      interpolation='bilinear', extent=extent, origin='lower')
+            viz.eps_shapes(layer=self.layer, ax=ax, extent=extent, alpha=0.15)
         return fig
 
     def generate_mp4(self, time_range, frames, val='re', eps=True, poynting_vector=True, pv_coarseness=1, **kwargs):
@@ -283,10 +285,57 @@ class XYField:
 
         raise NotImplementedError("Not implemented yet")
 
+    def time_avg_pv(self, period, N_samples, fig=None, eps=True, pv_coarseness=1, cbar=True,figsize=None):
+        if fig is None:
+            fig = plt.figure(constrained_layout=True,figsize=figsize)
+
+        ax=fig.add_subplot()
+
+        S_avg = np.zeros((3, self.res[1], self.res[0]))
+
+        for t in np.linspace(0, period, N_samples):
+            pv = self.poynting_vector(t)
+            S_avg = S_avg + pv / N_samples
+
+        extent = self.meshgrid[0].min(), self.meshgrid[0].max(), self.meshgrid[1].min(), self.meshgrid[1].max()
+
+        S_0 = S_avg[0]
+        S_1 = S_avg[1]
+        S_0 = utils.lowpass_downsample(S_0, pv_coarseness)
+        S_1 = utils.lowpass_downsample(S_1, pv_coarseness)
+
+        vector_meshgrid = np.meshgrid(np.linspace(extent[0], extent[1], S_0.shape[1]),
+                                      np.linspace(extent[2], extent[3], S_0.shape[0]))
+        xgrid, ygrid = vector_meshgrid
+        magnitude = ((S_0 ** 2) + (S_1 ** 2)) ** (1 / 2)
+
+        colormap = matplotlib.cm.afmhot
+        norm = Normalize()
+        colors = magnitude
+        norm.autoscale(colors)
+
+        unit_s_0 = S_0 / magnitude
+        unit_s_1 = S_1 / magnitude
+
+        if eps:
+            viz.eps_shapes(self.phc.layers[-1], alpha=0.5, ax=ax, extent=extent)
+
+        quiv = ax.quiver(np.ravel(xgrid), np.ravel(ygrid), np.ravel(unit_s_0), np.ravel(unit_s_1),
+                         color=(colormap(norm(np.ravel(magnitude)))), pivot='mid',
+                         angles='xy', scale_units='xy', scale=1, width=0.0015 *pv_coarseness, alpha=0.8)
+        ax.set_facecolor(np.array([0, 0, 0, 1]))
+        return fig
+
+    def return_mode_volume(self):
+        E = self._field(time=0)[0]
+
+        normed = np.linalg.norm(E, axis=2)
+        return np.max(normed)/np.sum(normed)*self.res[0]*self.res[1]
+
     def __add__(self, o):
 
         if self.phc != o.phc:
-            raise(ValueError("Unable to add fields over different crystals."))
+            raise(ValueError("Unable to add `field`s over different crystals."))
         if all(self.res != o.res):
             raise(ValueError("Unable to add fields with different resolutions."))
         if self.polarization != o.polarization:
@@ -296,7 +345,7 @@ class XYField:
 
         field = lambda t: self._field(t) + o._field(t)
         return XYField(res = self.res, phc=self.phc, z_dimension=self.z_dimension,
-                                 polarization=self.polarization, meshgrid=self.meshgrid, eps_r=self.eps_r, field=field)
+                                 polarization=self.polarization, meshgrid=self.meshgrid, field=field)
 
     def __sub__(self, o):
 
@@ -311,14 +360,14 @@ class XYField:
 
         field = lambda t: self._field(t) - o._field(t)
         return XYField(res = self.res, phc=self.phc, z_dimension=self.z_dimension,
-                                 polarization=self.polarization, meshgrid=self.meshgrid, field=field, eps_r=self.eps_r)
+                                 polarization=self.polarization, meshgrid=self.meshgrid, field=field)
 
     def __mul__(self, o):
         field = lambda t: o*self._field(t)
         return XYField(res=self.res, phc=self.phc, z_dimension=self.z_dimension,
-                         polarization=self.polarization, meshgrid=self.meshgrid, field=field, eps_r=self.eps_r)
+                         polarization=self.polarization, meshgrid=self.meshgrid, field=field)
 
     def __rmul__(self, o):
         field = lambda t: o*self._field(t)
         return XYField(res=self.res, phc=self.phc, z_dimension=self.z_dimension,
-                         polarization=self.polarization, meshgrid=self.meshgrid, field=field, eps_r=self.eps_r)
+                         polarization=self.polarization, meshgrid=self.meshgrid, field=field)

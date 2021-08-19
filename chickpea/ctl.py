@@ -743,7 +743,7 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
             if custom_lattice_vectors is not None:
                 self.lattice_vectors = custom_lattice_vectors
             else:
-                raise ValueError("For cutom type custom_lattice_vectors must be defined.")
+                raise ValueError("For custom type custom_lattice_vectors must be defined.")
         else:
             raise ValueError("Type must be custom, square or hexagonal")
         lattice = legume.Lattice(self.lattice_vectors[0]*supercell_size[0], self.lattice_vectors[1]*supercell_size[1], reduce_lattice=False)
@@ -838,8 +838,6 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
         cryst = legume.PhotCryst(self._lattice, eps_l=self.eps_l, eps_u=self.eps_u)
         cryst.add_layer(d=self.thickness, eps_b=self.eps_b)
-
-
 
         for i in range(Nx):
             for j in range(Ny):
