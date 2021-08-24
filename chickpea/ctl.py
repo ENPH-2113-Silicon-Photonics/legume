@@ -710,7 +710,7 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
 class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
     def __init__(self, lattice_type: Literal['hexagonal', 'square', 'custom'], shape: ShapeBuilder, supercell_size: Tuple[int, int], thickness: float, eps_shape: float,
-                 eps_b: float, eps_l: float = 1, eps_u: float = 1, custom_lattice_vectors = None):
+                 eps_b: float, a: float =1, eps_l: float = 1, eps_u: float = 1, custom_lattice_vectors = None):
 
 
         self.type = lattice_type.lower()
@@ -735,10 +735,10 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
 
         if self.type == 'hexagonal':
-            self.lattice_vectors = np.array([[1,0],[1/2,np.sqrt(3)/2]])
+            self.lattice_vectors = np.array([[1,0],[1/2,np.sqrt(3)/2]]) * a
 
         elif self.type == 'square':
-            self.lattice_vectors = np.array([[1, 0], [0, 1]])
+            self.lattice_vectors = np.array([[1, 0], [0, 1]]) * a
         elif self.type == 'custom':
             if custom_lattice_vectors is not None:
                 self.lattice_vectors = custom_lattice_vectors

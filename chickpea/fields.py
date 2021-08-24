@@ -327,7 +327,7 @@ class XYField:
         return fig
 
     def return_mode_volume(self):
-        E = self._field(time=0)[0]
+        E = self._field(0)[0]
 
         normed = np.linalg.norm(E, axis=2)
         return np.max(normed)/np.sum(normed)*self.res[0]*self.res[1]
