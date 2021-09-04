@@ -2,8 +2,6 @@ import autograd.numpy as np
 import legume
 
 
-
-
 class ShapeBuilder():
     def __init__(self, **defaults):
 
