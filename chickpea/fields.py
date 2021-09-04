@@ -28,6 +28,7 @@ class XYField:
             :param phc: photonic crystal field was generated over.
             :param meshgrid: Meshgrid associated with field where each entry of E and H assigned to meshgrid.
         """
+        self._eps_dist=None
         if np.array(res).__len__()==1:
             self.res = np.array((res, res))
 
@@ -159,7 +160,9 @@ class XYField:
         return self._field(time)
 
     def eps_dist(self):
-        return self.phc.get_eps((self.meshgrid[0], self.meshgrid[1], self.z_dimension * np.ones(self.meshgrid[0].shape)))
+        if self._eps_dist is None:
+            self._eps_dist = self.phc.get_eps((self.meshgrid[0], self.meshgrid[1], self.z_dimension * np.ones(self.meshgrid[0].shape)))
+        return self._eps_dist
 
     def visualize_field(self, field, component, time=0, profile=True, poynting_vector=False, pv_coarseness=1,
                         eps=True, val='re', normalize=False, fig=None, figsize=None):
@@ -326,11 +329,12 @@ class XYField:
         ax.set_facecolor(np.array([0, 0, 0, 1]))
         return fig
 
-    def return_mode_volume(self):
+    def return_mode_volume(self)    :
         E = self._field(0)[0]
+        eps = self.eps_dist()
 
-        normed = np.linalg.norm(E, axis=2)
-        return np.max(normed)/np.sum(normed)*self.res[0]*self.res[1]
+        normed = np.linalg.norm(E, axis=0)
+        return np.sum(normed*eps) / self.res[0]*self.res[1] / np.max(normed*eps) * np.linalg.norm(np.cross(self.lattice.a1, self.lattice.a2))
 
     def __add__(self, o):
 
