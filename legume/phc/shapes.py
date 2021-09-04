@@ -120,7 +120,7 @@ class Circle(Shape):
         eps_cmap : mpl.colors.Colormap mapping permitivity to color
         offset : coordinates of translation on shape.
         """
-        return mpl.patches.circle((self.x_cent + offset[0], self.y_cent + offset[1]), self.r)
+        return mpl.patches.Circle((self.x_cent, self.y_cent), self.r)
 
 
 class Poly(Shape):

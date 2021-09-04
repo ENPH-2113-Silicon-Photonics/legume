@@ -1,6 +1,6 @@
 import legume
 from typing import Sequence, Literal, Tuple, List
-
+import autograd.numpy as np
 import matplotlib.pyplot as plt
 import itertools
 from chickpea.sbl import ShapeBuilder
@@ -46,7 +46,7 @@ class CrystalTopology:
 class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
     def __init__(self, type: Literal['hexagonal', 'square'], supercell_size: Tuple[int, int], thickness: float,
-                 radius: float, eps_b: float, eps_circ, eps_l: float = 1, eps_u: float = 1):
+                 radius: float, eps_b: float, eps_circ, eps_l: float = 1, eps_u: float = 1, h_ratio: float=1, v_ratio: float=1):
         super().__init__()
         self.eps_b = eps_b
         self.eps_circ = eps_circ
@@ -87,7 +87,13 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
             lattice = legume.Lattice([supercell_size[0], 0], [0, supercell_size[1]])
             self._lattice = lattice
+        elif self.type == 'rectangular':
+            self.xgrid, self.ygrid = np.meshgrid(np.array(range(Nx)*self.h_ratio, dtype=np.float64),
+                                                 np.array(range(Ny)*self.v_ratio, dtype=np.float64))
+            self.pos_grid = (self.xgrid.T, self.ygrid.T)
 
+            lattice = legume.Lattice([supercell_size[0]*self.h_ratio, 0], [0, supercell_size[1]*self.v_ratio])
+            self._lattice = lattice
         else:
             raise ValueError("Type must be hexagonal or square")
 
@@ -438,12 +444,13 @@ class PhotonicCrystalTopologyBuilder(CrystalTopology):
 
 class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
-    def __init__(self, lattice_type: Literal['hexagonal', 'square', 'custom'], shape: ShapeBuilder,
-                 supercell_size: Tuple[int, int], thickness: float, eps_shape: float,
-                 eps_b: float, eps_l: float = 1, eps_u: float = 1, custom_lattice_vectors=None):
+    def __init__(self, lattice_type: Literal['hexagonal', 'square', 'custom'], shape: ShapeBuilder, supercell_size: Tuple[int, int], thickness: float, eps_shape: float,
+                 eps_b: float, a: float =1, eps_l: float = 1, eps_u: float = 1, custom_lattice_vectors = None):
+
 
         self.type = lattice_type.lower()
         self._supercell_size = supercell_size
+
 
         self.eps_b = eps_b
         self.eps_shape = eps_shape
@@ -461,16 +468,17 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
         self.Nx, self.Ny = self._supercell_size
 
+
         if self.type == 'hexagonal':
-            self.lattice_vectors = bd.array([[1, 0], [1 / 2, bd.sqrt(3) / 2]])
+            self.lattice_vectors = bd.array([[1, 0], [1 / 2, bd.sqrt(3) / 2]]) * a
 
         elif self.type == 'square':
-            self.lattice_vectors = bd.array([[1, 0], [0, 1]])
+            self.lattice_vectors = bd.array([[1, 0], [0, 1]]) * a
         elif self.type == 'custom':
             if custom_lattice_vectors is not None:
                 self.lattice_vectors = custom_lattice_vectors
             else:
-                raise ValueError("For cutom type custom_lattice_vectors must be defined.")
+                raise ValueError("For custom type custom_lattice_vectors must be defined.")
         else:
             raise ValueError("Type must be custom, square or hexagonal")
         lattice = legume.Lattice(self.lattice_vectors[0] * supercell_size[0],
@@ -524,6 +532,7 @@ class GeneralizedPHCTopologyBuilder(CrystalTopology):
 
                     for coord in row.T:
                         self.update_shape(coord, **shape_parameters)
+
 
     def get_base_crystal(self) -> legume.phc.phc:
 

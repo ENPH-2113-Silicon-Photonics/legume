@@ -45,13 +45,11 @@ def import_eps_image(img_path, eps_map, tol=5):
     :return: np array of permitivity values
     """
 
-    # %%
     img = Image.open(img_path)
 
     img = img.quantize(colors=len(eps_map), dither=Image.FLOYDSTEINBERG)
     img = img.convert('L')
 
-    # %%
     img = np.asarray(img)
     shape = img.shape
 
@@ -167,14 +165,9 @@ def unfold_bands(super_gme, supercell_size, branch_start=-np.pi):
     b1 = lattice.b1
     b2 = lattice.b2
 
-    if b1[1]==0 and b2[0]==0:
-        N1, N2 = supercell_size
-    elif b1[0] == 0 and b2[1] == 0:
-        N2, N1 = supercell_size
-    else:
-        raise(ValueError("Supercell is not rectangular."))
+    N1, N2 = supercell_size
 
-    # Pad the other_mask so that when we roll the other_mask we don't create artifacts bleed array.
+    # Pad the mask so that when we roll the mask we don't create artifacts.
     # TODO We lose prim vectors on sides.
 
     pad_mask = np.pad(mask, ((N1-1, 0), (N2-1, 0)))
@@ -186,9 +179,8 @@ def unfold_bands(super_gme, supercell_size, branch_start=-np.pi):
     for k in range(len(super_gme.kpoints.transpose())):
         for w in range(len(super_gme.eigvecs[k].transpose())):
 
-
             eig = super_gme.eigvecs[k].transpose()[w].reshape((super_gme.n1g, super_gme.n2g))
-            # Roll padded other_mask and truncate to shape of eigen vector.\
+            # Roll padded mask and truncate to shape of eigen vector.
             probability = np.empty((N1,N2))
             for i,j in itertools.product(range(N1),range(N2)): probability[i,j] = \
                 np.sum(np.square(np.abs(eig[np.roll(pad_mask, (i,j), axis=(0, 1))[N1-1:, N2-1:]])))

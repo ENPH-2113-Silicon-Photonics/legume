@@ -30,6 +30,7 @@ class XYField:
             :param phc: photonic crystal field was generated over.
             :param meshgrid: Meshgrid associated with field where each entry of E and H assigned to meshgrid.
         """
+        self._eps_dist=None
         if np.array(res).__len__() == 1:
             self.res = np.array((res, res))
 
@@ -159,8 +160,10 @@ class XYField:
         return self._field(time)
 
     def eps_dist(self):
-        return self.phc.get_eps(
-            (self.meshgrid[0], self.meshgrid[1], self.z_dimension * np.ones(self.meshgrid[0].shape)))
+        if self._eps_dist is None:
+            self._eps_dist = self.phc.get_eps(
+                (self.meshgrid[0], self.meshgrid[1], self.z_dimension * np.ones(self.meshgrid[0].shape)))
+        return self._eps_dist
 
     def visualize_field(self, field, component, time=0, profile=True, poynting_vector=False, pv_coarseness=1,
                         eps=True, val='re', normalize=False, fig=None, figsize=None):
@@ -215,12 +218,25 @@ class XYField:
 
         extent = self.meshgrid[0].min(), self.meshgrid[0].max(), self.meshgrid[1].min(), self.meshgrid[1].max()
 
+
+
         if profile:
-            im = ax.imshow(field, extent=extent, vmax=vmax, vmin=vmin,
-                           cmap=cmap, origin='lower')
+            im=ax.imshow(field, extent=extent, vmax=vmax, vmin=vmin,
+                      cmap=cmap, origin='lower')
+
+
 
         if eps:
             viz.eps_shapes(layer=self.layer, ax=ax, extent=extent, alpha=0.3)
+
+
+        if profile:
+            im=ax.imshow(field, extent=extent, vmax=vmax, vmin=vmin,
+                      cmap=cmap, origin='lower', alpha=1)
+
+
+
+
         if poynting_vector:
             S = self.coarse_poynting_vector(time, pv_coarseness)
             S_0 = S[0]
@@ -246,10 +262,12 @@ class XYField:
 
             ax.quiver(np.ravel(xgrid), np.ravel(ygrid), np.ravel(unit_s_0), np.ravel(unit_s_1),
                       color=(colormap(norm(np.ravel(magnitude)))), pivot='mid',
-                      angles='xy', scale_units='xy', scale=1, alpha=0.8,
-                      width=0.0025 * pv_coarseness  # Fudge factor on width makes arrows the same shape
-                                                    # independent of pv_coarseness.
-                      )
+                      angles='xy', scale_units='xy', scale=1, width=0.0015*pv_coarseness, # Fudge factor on width to make arrows the same shape independent of pv_coarseness.
+                            alpha=0.8)
+
+            # The parameters for the quiver
+        ax.set_xlim(extent[0], extent[1])
+        ax.set_ylim(extent[2], extent[3])
         return ax
 
     def vizualize_chirality(self, field, component='z', time=0, fig=None, figsize=None, eps=True):
@@ -266,8 +284,7 @@ class XYField:
         ax.imshow(np.real(chirality), extent=extent, vmax=vmax, vmin=vmin,
                   cmap='RdBu', origin='lower')
         if eps:
-            ax.imshow(self.eps(), cmap=plt.cm.binary, alpha=.3,
-                      interpolation='bilinear', extent=extent, origin='lower')
+            viz.eps_shapes(layer=self.layer, ax=ax, extent=extent, alpha=0.15)
         return fig
 
     def generate_mp4(self, time_range, frames, val='re', eps=True, poynting_vector=True, pv_coarseness=1, **kwargs):
@@ -286,6 +303,54 @@ class XYField:
 
         raise NotImplementedError("Not implemented yet")
 
+    def time_avg_pv(self, period, N_samples, fig=None, eps=True, pv_coarseness=1, cbar=True,figsize=None):
+        if fig is None:
+            fig = plt.figure(constrained_layout=True,figsize=figsize)
+
+        ax=fig.add_subplot()
+
+        S_avg = np.zeros((3, self.res[1], self.res[0]))
+
+        for t in np.linspace(0, period, N_samples):
+            pv = self.poynting_vector(t)
+            S_avg = S_avg + pv / N_samples
+
+        extent = self.meshgrid[0].min(), self.meshgrid[0].max(), self.meshgrid[1].min(), self.meshgrid[1].max()
+
+        S_0 = S_avg[0]
+        S_1 = S_avg[1]
+        S_0 = utils.lowpass_downsample(S_0, pv_coarseness)
+        S_1 = utils.lowpass_downsample(S_1, pv_coarseness)
+
+        vector_meshgrid = np.meshgrid(np.linspace(extent[0], extent[1], S_0.shape[1]),
+                                      np.linspace(extent[2], extent[3], S_0.shape[0]))
+        xgrid, ygrid = vector_meshgrid
+        magnitude = ((S_0 ** 2) + (S_1 ** 2)) ** (1 / 2)
+
+        colormap = matplotlib.cm.afmhot
+        norm = Normalize()
+        colors = magnitude
+        norm.autoscale(colors)
+
+        unit_s_0 = S_0 / magnitude
+        unit_s_1 = S_1 / magnitude
+
+        if eps:
+            viz.eps_shapes(self.phc.layers[-1], alpha=0.5, ax=ax, extent=extent)
+
+        quiv = ax.quiver(np.ravel(xgrid), np.ravel(ygrid), np.ravel(unit_s_0), np.ravel(unit_s_1),
+                         color=(colormap(norm(np.ravel(magnitude)))), pivot='mid',
+                         angles='xy', scale_units='xy', scale=1, width=0.0015 *pv_coarseness, alpha=0.8)
+        ax.set_facecolor(np.array([0, 0, 0, 1]))
+        return fig
+
+    def return_mode_volume(self)    :
+        E = self._field(0)[0]
+        eps = self.eps_dist()
+
+        normed = np.linalg.norm(E, axis=0)
+        return np.sum(normed*eps) / self.res[0]*self.res[1] / np.max(normed*eps) * np.linalg.norm(np.cross(self.lattice.a1, self.lattice.a2))
+
     def __add__(self, o):
         """
         Add two fields as time -> field_1(time) + field_2(time)
@@ -302,8 +367,8 @@ class XYField:
             raise (ValueError("Unable to add fields with different z dimension."))
 
         field = lambda t: self._field(t) + o._field(t)
-        return XYField(res=self.res, phc=self.phc, z_dimension=self.z_dimension,
-                       polarization=self.polarization, meshgrid=self.meshgrid, eps_r=self.eps_r, field=field)
+        return XYField(res = self.res, phc=self.phc, z_dimension=self.z_dimension,
+                                 polarization=self.polarization, meshgrid=self.meshgrid, field=field)
 
     def __sub__(self, o):
 
@@ -317,15 +382,15 @@ class XYField:
             raise (ValueError("Unable to add fields with different z dimension."))
 
         field = lambda t: self._field(t) - o._field(t)
-        return XYField(res=self.res, phc=self.phc, z_dimension=self.z_dimension,
-                       polarization=self.polarization, meshgrid=self.meshgrid, field=field, eps_r=self.eps_r)
+        return XYField(res = self.res, phc=self.phc, z_dimension=self.z_dimension,
+                                 polarization=self.polarization, meshgrid=self.meshgrid, field=field)
 
     def __mul__(self, o):
         field = lambda t: o * self._field(t)
         return XYField(res=self.res, phc=self.phc, z_dimension=self.z_dimension,
-                       polarization=self.polarization, meshgrid=self.meshgrid, field=field, eps_r=self.eps_r)
+                         polarization=self.polarization, meshgrid=self.meshgrid, field=field)
 
     def __rmul__(self, o):
         field = lambda t: o * self._field(t)
         return XYField(res=self.res, phc=self.phc, z_dimension=self.z_dimension,
-                       polarization=self.polarization, meshgrid=self.meshgrid, field=field, eps_r=self.eps_r)
+                         polarization=self.polarization, meshgrid=self.meshgrid, field=field)
